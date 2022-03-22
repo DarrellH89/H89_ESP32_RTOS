@@ -13,7 +13,7 @@
     AsyncWebServer server(80);
 
 void setUpOta(){
-   WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("");
 
@@ -36,6 +36,6 @@ void setUpOta(){
   Serial.println("Elegant OTA Initiated");
   Serial.println("HTTP Server Has started Sucessfully");
   Serial.println("To access OTA Update, type");
-  Serial.println(WiFi.localIP());
+  Serial.print(WiFi.localIP());
   Serial.println("/update");    
 }

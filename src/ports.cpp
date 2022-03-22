@@ -34,6 +34,10 @@ void setPorts(){
     pinMode(intr7E,INPUT_PULLUP);
     pinMode(DATA_IN_OE, OUTPUT);
     pinMode(DATA_OUT_OE, OUTPUT);
+    // pinMode(SD_CLK, OUTPUT);
+    // pinMode(SD_CS, OUTPUT);
+    // pinMode(SD_IN, INPUT_PULLUP);
+    // pinMode(SD_OUT,OUTPUT);
 
     digitalWrite(STATUS_BIT_0,LOW);
     digitalWrite(STATUS_BIT_1, LOW);

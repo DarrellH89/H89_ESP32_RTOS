@@ -1,6 +1,10 @@
 #ifndef SETTINGS_H
     #define SETTINGS_H
     #include <Arduino.h>
+    #include "fs.h"
+    #include "sd.h"
+    #include "spi.h"
+    #include <Wire.h> // must be included here so that Arduino library object file references work
     
     //************* New Data & Status Out pins
  
@@ -8,7 +12,7 @@
     #define DATA_OUT_OE     15
     #define STATUS_BIT_1    4
     #define STATUS_BIT_0    0
-    #define ALIVE_LED       21
+    //#define ALIVE_LED       21
     //***************** Data direction flag values
     #define DATA_OUT        0
     #define DATA_IN         1
@@ -17,8 +21,7 @@
     //***************** Interrupt Pins
     #define intr7C          35  
     #define intr7E          34    
-    #define H89_READ_DATA   5
-
+    #define H89_READ_DATA   21
     //*************** Status values
     #define MAX_READ_WAIT   10000
     #define CMD_RDY         0b00000000
@@ -30,15 +33,33 @@
     #define H89_OK_TO_READ  1
     #define H89_GOT_DATA    2
 
-    const String version = "Hi! I am H89-ESP32, Version 3.0 A";
+    const String version = "Hi! I am H89-ESP32, Version 3.0 B";
 
+    //**************** SD Card pins
+    #define SD_CLK  18
+    #define SD_OUT  23
+    #define SD_IN   19
+    #define SD_CS   5
     //************** function definitions
+    // port management
     void setPorts();
     void setOutput();
     void setInput();
-
+    // Data In / Out
     byte dataOut(byte data);
     int dataIn();
     void setStatusPort(byte status);
+    // Over the Air
     void setUpOta();
+    // File functions
+    void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
+    void createDir(fs::FS &fs, const char * path);
+    void removeDir(fs::FS &fs, const char * path);
+    void readFile(fs::FS &fs, const char * path);
+    void writeFile(fs::FS &fs, const char * path, const char * message);
+    void appendFile(fs::FS &fs, const char * path, const char * message);
+    void renameFile(fs::FS &fs, const char * path1, const char * path2);
+    void deleteFile(fs::FS &fs, const char * path);
+    void testFileIO(fs::FS &fs, const char * path);
+
 #endif  

@@ -12,7 +12,7 @@
     #define DATA_OUT_OE     15
     #define STATUS_BIT_1    4
     #define STATUS_BIT_0    0
-    //#define ALIVE_LED       21
+    #define ALIVE_LED       22
     //***************** Data direction flag values
     #define DATA_OUT        0
     #define DATA_IN         1
@@ -37,8 +37,8 @@
 
     //**************** SD Card pins
     #define SD_CLK  18
-    #define SD_OUT  23
-    #define SD_IN   19
+    #define SD_OUT  23      // MOSI - Microcontroller Out Serial In pin
+    #define SD_IN   19      // MISO -  Microcontroller In Serial Out pin
     #define SD_CS   5
     //************** function definitions
     // port management

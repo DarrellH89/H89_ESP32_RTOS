@@ -2,7 +2,7 @@
 //#include "global.hpp"
 
 // Test LED blinkers 
-//const byte led1 = ALIVE_LED;
+const byte led1 = ALIVE_LED;
 unsigned long delayLed = 0;
 volatile int t1 = 0;
 
@@ -189,7 +189,7 @@ void setup() {
   setInput();
   pinInOut = DATA_IN;
 
-  //pinMode(led1,OUTPUT);
+  pinMode(led1,OUTPUT);
 
   attachInterrupt(digitalPinToInterrupt(intr7C), intrHandle7C, FALLING);
   attachInterrupt(digitalPinToInterrupt(intr7E), intrHandle7E, FALLING);
@@ -321,10 +321,10 @@ void loop() {
     portEXIT_CRITICAL(&timerMux);
  
     totalInterruptCounter++;
-    // if(totalInterruptCounter % 2 == 0)
-    //     digitalWrite(led1,LOW);
-    //   else
-    //     digitalWrite(led1,HIGH);
+    if(totalInterruptCounter % 2 == 0)
+        digitalWrite(led1,LOW);
+      else
+        digitalWrite(led1,HIGH);
   }
 
 }

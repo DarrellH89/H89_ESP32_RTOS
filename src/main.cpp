@@ -122,6 +122,7 @@ void IRAM_ATTR intrHandle7E() {     // Command flag
   portEXIT_CRITICAL_ISR(&Cmdmux);
 }
 
+//****************** SD Test ************
 void sdTest(){
   //  SPIClass spi = SPIClass(VSPI);
   //  spi.begin(SD_CLK,SD_OUT, SD_IN, SD_CS);
@@ -173,8 +174,6 @@ void sdTest(){
       }
         else
           Serial.printf("Seek Failed\n");
-
-
     }
     else
       Serial.printf("Win89 Read Error\n");
@@ -183,8 +182,11 @@ void sdTest(){
 void setup() {
   Serial.begin(115200);
   dataInTimePtr = 0;
+  setupWifi();
   setUpOta();
+//  setupFileServer();
 
+   // H89 interface setup
   setPorts();
   setInput();
   pinInOut = DATA_IN;
@@ -215,6 +217,9 @@ void setup() {
 void loop() {
   int sendCnt = 0;
   long errCnt = 0 ;
+  // Test Web Socket
+    cleanSocket();
+
   // termninal interaction code
   if(Serial.available() > 0) {
     String dataStr = Serial.readString();

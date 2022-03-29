@@ -5,7 +5,17 @@
     #include "sd.h"
     #include "spi.h"
     #include <Wire.h> // must be included here so that Arduino library object file references work
-    
+    #include <AsyncTCP.h>
+    #include <ESPAsyncWebServer.h>
+    #include <WiFi.h>
+
+
+// End OTA update
+    //************* Server ports
+    #define OTA_SERVER 80
+    #define FILE_SERVER 81
+
+
     //************* New Data & Status Out pins
  
     #define DATA_IN_OE      2
@@ -61,5 +71,9 @@
     void renameFile(fs::FS &fs, const char * path1, const char * path2);
     void deleteFile(fs::FS &fs, const char * path);
     void testFileIO(fs::FS &fs, const char * path);
-
+    
+    void setupWifi();
+    void setupFileServer();
+void initWebSocket();
+ void cleanSocket();
 #endif  

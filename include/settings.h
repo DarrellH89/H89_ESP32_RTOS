@@ -8,13 +8,25 @@
     #include <AsyncTCP.h>
     #include <ESPAsyncWebServer.h>
     #include <WiFi.h>
+ 
 
+   //******** Webserver related variables
+   #define FIRMWARE_VERSION "v0.0.1"
 
-// End OTA update
+    // configuration structure
+    struct Config {
+        String ssid;               // wifi ssid
+        String wifipassword;       // wifi password
+        String httpuser;           // username to access web admin
+        String httppassword;       // password to access web admin
+        int webserverporthttp;     // http port number for web admin
+    };
+
     //************* Server ports
-    #define OTA_SERVER 80
-    #define FILE_SERVER 81
+    // #define OTA_SERVER 80
+    // #define FILE_SERVER 81
 
+   //******** End Websrvr related variables ***********
 
     //************* New Data & Status Out pins
  
@@ -43,7 +55,7 @@
     #define H89_OK_TO_READ  1
     #define H89_GOT_DATA    2
 
-    const String version = "Hi! I am H89-ESP32, Version 3.0 B";
+    const String version = "Hi! I am H89-ESP32, Version 3.0 C";
 
     //**************** SD Card pins
     #define SD_CLK  18
@@ -61,7 +73,7 @@
     void setStatusPort(byte status);
     // Over the Air
     void setUpOta();
-    // File functions
+    // File Test routine functions
     void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
     void createDir(fs::FS &fs, const char * path);
     void removeDir(fs::FS &fs, const char * path);
@@ -72,8 +84,25 @@
     void deleteFile(fs::FS &fs, const char * path);
     void testFileIO(fs::FS &fs, const char * path);
     
+    // End File Test Functions
+
     void setupWifi();
     void setupFileServer();
-void initWebSocket();
- void cleanSocket();
+    void sdTest() ;
+
+    //void initWebSocket();
+    void cleanSocket();
+    String humanReadableSize(const size_t bytes);
+    void rebootESP(String message) ;
+    void configureWebServer() ;
+    String listFiles(bool ishtml);
+    void rebootESP(String message); 
+    String processor(const String& var);
+    void notFound(AsyncWebServerRequest *request);
+    void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+    bool checkUserWebAuth(AsyncWebServerRequest * request);
+    void notFound(AsyncWebServerRequest *request) ;
+    void configureWebServer();
+    void rebootESP(String message) ;
+    String listFiles(bool ishtml) ;
 #endif  

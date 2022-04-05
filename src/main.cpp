@@ -1,10 +1,29 @@
+/*
+    Micronics Technology H89 ESP32 intrface
+    Copyright (C) 2022  Darrell Pelan
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "settings.h"
-//#include "global.hpp"
+#include "license.h"
 
 
 AsyncWebServer *server;  
-extern Config config;                        // configuration
+extern Config config;
 extern bool shouldReboot;
+const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n";
 // Test LED blinkers 
 const byte led1 = ALIVE_LED;
 unsigned long delayLed = 0;
@@ -130,10 +149,11 @@ void IRAM_ATTR intrHandle7E() {     // Command flag
 // ************************************ Setup *************************************
 void setup() {
   Serial.begin(115200);
+  Serial.println(copyRightNoticeShort);
   dataInTimePtr = 0;
   setupWifi();
   Serial.println("Configuring Webserver ...");
-  server = new AsyncWebServer(config.webserverporthttp);
+  server = new AsyncWebServer(WEB_SERVER);
   configureWebServer();  
   if(!SD.begin()){     //SD_CS,spi,80000000)){
     Serial.println("Card Mount Failed");
@@ -163,7 +183,7 @@ void setup() {
   // debug stuff
   Serial.printf("Heap: Free %d, Min: %d, Size: %d, Alloc: %d\n", ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getHeapSize(), ESP.getMaxAllocHeap());
   sentPtr = -1;
-
+  Serial.printf(menuStr);
 }
 
 //************** LOOP ****************
@@ -179,25 +199,36 @@ void loop() {
   // termninal interaction code
   if(Serial.available() > 0) {
     String dataStr = Serial.readString();
-    if(dataStr[0] == 'v')
-      Serial.println(version);
-    if(dataStr[0] == 'b'){
-     Serial.println("Restart\n"); 
-     ESP.restart();
+    switch(tolower(dataStr[0])){
+      case 'v':
+        Serial.println(version);
+        break;
+      case 'm':
+        Serial.println(menuStr);
+        break;
+      case 'l':
+        Serial.println(Notice);
+        break;        
+      case 'b':
+        Serial.println("Restart\n"); 
+        ESP.restart();
+        break;
+      case 'r':
+        Serial.println("Resetting counters\n");
+        last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
+        bitCtr = 0;
+        t1 = 0;
+        break;
+      case 's':
+        Serial.println("SD Card test\n");
+        sdTest();
+        break; 
+      case 'c':
+        Serial.println("Clear NVM\n");
+        setConfig(true);      
+        break;
       }
-    if(dataStr[0] == 'r'){
-      Serial.println("Resetting counters\n");
-      last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
-      bitCtr = 0;
-      t1 = 0;
-      } 
-    if(dataStr[0] == 's'){
-      Serial.println("SD Card test\n");
-      sdTest();
-
-      }   
     }
-
   // Check if all command bytes arrived
   if (cmdDataPtr >= CMD_LENGTH){
     // load data to send back

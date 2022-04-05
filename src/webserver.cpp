@@ -3,33 +3,93 @@
 #include "webpages.h"
 
 String logmessage = "";
+// configuration structure
+Config config;
 
 extern AsyncWebServer *server;  
-Config config;                        // configuration
+//Config config;                        // configuration
 bool shouldReboot;
-const String default_ssid = "pelan";
-const String default_wifipassword = "Datsun240z";
-const String default_httpuser = "admin";
-const String default_httppassword = "admin";
-const int default_webserverporthttp = 80;
-// OTA Server
-// AsyncWebServer server(OTA_SERVER);
-// AsyncWebSocket ws("/ws");
+// const String default_ssid = "pelan";
+// const String default_wifipassword = "Datsun240z";
+// const String default_httpuser = "admin";
+// const String default_httppassword = "admin";
+// const int default_webserverporthttp = 80;
+Preferences prefs;              // access to EEPROM (NVM)
+
+
+String askInfo(String what){
+  String dataStr = "";
+  bool test = false;
+  while(!test){
+    Serial.printf("Please enter %s (15 char or less)", what.c_str());
+    while(Serial.available() == 0) ;
+    Serial.println();
+    dataStr = Serial.readStringUntil('\n');
+    if(dataStr.length() < 15 )
+      test = true;
+    }
+  return dataStr ;  
+}
+//***************** set Config
+// Get network parameters from NVM
+void setConfig(bool reset){
+  bool okay = false;
+
+  if(reset){
+    prefs.clear();
+        // prefs.putString("ssid", "pelan");
+        // prefs.putString("pw", "Datsun240z");
+        // prefs.putString("user", "admin");
+        // prefs.putString("httppw", "admin");
+    return;
+    }
+  Serial.println("Loading Configuration ...");
+  prefs.begin("config", false);
+
+  while(!okay){
+    Serial.printf("Checking Data\n");
+    if(!prefs.isKey("ssid")){
+      config.ssid = askInfo("ssid");
+      config.wifipassword = askInfo("wifi password");
+      config.httpuser = askInfo("web user id");
+      config.httppassword = askInfo("web password");
+      
+      prefs.putString("ssid", config.ssid);
+      prefs.putString("pw", config.wifipassword);
+      prefs.putString("user", config.httpuser);
+      prefs.putString("httppw", config.httppassword);
+      Serial.printf("perf ssid: %s\n", prefs.getString("ssid", "crap").c_str());
+    } else{
+        config.ssid = prefs.getString("ssid","");
+        config.wifipassword = prefs.getString("pw","");
+        config.httpuser = prefs.getString("user","");
+        config.httppassword = prefs.getString("httppw","");
+        }
+    if(config.ssid.length() > 1 &&
+       config.wifipassword.length() > 1 &&
+       config.httpuser.length() > 1 &&
+       config.httppassword.length() > 1)
+       okay = true;
+  }
+  //Serial.printf("ssid %s, pw %s, http user %s, http pw: %s\n", config.ssid.c_str(), config.wifipassword.c_str(), config.httpuser.c_str(), config.httppassword.c_str());
+  prefs.end();  
+ }
 
 //************ Setup WiFi *************
 void setupWifi(){
- Serial.println("Loading Configuration ...");
-  config.ssid = default_ssid;
-  config.wifipassword = default_wifipassword;
-  config.httpuser = default_httpuser;
-  config.httppassword = default_httppassword;
-  config.webserverporthttp = default_webserverporthttp;
+  int cnt = 0;
+  Serial.println("\nWiFi Configuration ...");
+  setConfig(false);
 
-  Serial.print("\nConnecting to Wifi: ");
-  WiFi.begin(config.ssid.c_str(), config.wifipassword.c_str());
+  Serial.print("\nConnecting to Wifi: \n");
+  WiFi.begin(config.ssid.c_str(), config.wifipassword.c_str() );
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    if(cnt++> 20){
+      Serial.printf("\nWiFi failed to connect\n");
+      return;
+    }
   }
 
   Serial.println("\n\nNetwork Configuration:");

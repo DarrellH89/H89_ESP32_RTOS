@@ -8,22 +8,23 @@
     #include <AsyncTCP.h>
     #include <ESPAsyncWebServer.h>
     #include <WiFi.h>
- 
+    #include <Preferences.h>
+
+     // Copyright notice
+    const String copyRightNotice = "Micronics Technology H89 ESP32 intrface\n This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.\n" 
+                                   "This is free software, and you are welcome to redistribute it\n under certain conditions; type `show c' for details.\n";
 
    //******** Webserver related variables
    #define FIRMWARE_VERSION "v0.0.1"
-
-    // configuration structure
     struct Config {
         String ssid;               // wifi ssid
         String wifipassword;       // wifi password
         String httpuser;           // username to access web admin
         String httppassword;       // password to access web admin
-        int webserverporthttp;     // http port number for web admin
-    };
+    } ;
 
     //************* Server ports
-    // #define OTA_SERVER 80
+    #define WEB_SERVER 80
     // #define FILE_SERVER 81
 
    //******** End Websrvr related variables ***********
@@ -105,4 +106,5 @@
     void configureWebServer();
     void rebootESP(String message) ;
     String listFiles(bool ishtml) ;
+    void setConfig(bool reset);
 #endif  

@@ -21,7 +21,7 @@ String askInfo(String what){
   String dataStr = "";
   bool test = false;
   while(!test){
-    Serial.printf("Please enter %s (15 char or less)", what.c_str());
+    Serial.printf("Please enter %s (15 char or less): ", what.c_str());
     while(Serial.available() == 0) ;
     Serial.println();
     dataStr = Serial.readStringUntil('\n');

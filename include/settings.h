@@ -10,9 +10,6 @@
     #include <WiFi.h>
     #include <Preferences.h>
 
-     // Copyright notice
-    const String copyRightNotice = "Micronics Technology H89 ESP32 intrface\n This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.\n" 
-                                   "This is free software, and you are welcome to redistribute it\n under certain conditions; type `show c' for details.\n";
 
    //******** Webserver related variables
    #define FIRMWARE_VERSION "v0.0.1"
@@ -107,4 +104,5 @@
     void rebootESP(String message) ;
     String listFiles(bool ishtml) ;
     void setConfig(bool reset);
+    void commands();
 #endif  

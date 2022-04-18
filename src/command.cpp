@@ -2,9 +2,9 @@
 #include "settings.h"
 
   //************** H89 data flags and buffer
-volatile int currentStatus = 0 ;          // status value for H89 to read
-volatile int h89ReadData = DATA_SENT ;    // status value for H89 data actually read
-volatile int h89BytesToRead = 0;
+extern int currentStatus = 0 ;          // status value for H89 to read
+extern int h89ReadData = DATA_SENT ;    // status value for H89 data actually read
+extern int h89BytesToRead = 0;
 
 volatile byte dataInBuf[256] ;
 volatile int dataInPtr = 0;
@@ -29,7 +29,7 @@ extern portMUX_TYPE mux ;
 void commands(){
   int sendCnt = 0;
   long errCnt = 0 ;
-  int offset = 1;
+  extern int offset ;
 
     // Check if all command bytes arrived
   if (cmdDataPtr >= CMD_LENGTH){
@@ -68,17 +68,17 @@ void commands(){
     }
     dataOutBufPtr = 0 ;  
     dataOutBufLast = 0;
-    if(errCnt > 0){
-      Serial.printf("Data Out errors: %ld\n", errCnt);
-      errCnt = 0;
-      } 
+  if(errCnt > 0){
+    Serial.printf("Data Out errors: %ld\n", errCnt);
+    errCnt = 0;
+    } 
 
-    if(dataInPtr > 0){
-      Serial.println("Data Received"); 
-      for(int i = 0; i < dataInPtr; i++)
-        Serial.printf("%d\n",dataInBuf[i]);
-      portENTER_CRITICAL(&DataInmux);
-      dataInPtr = 0;  
-      portEXIT_CRITICAL(&DataInmux);
-      }
-   }
+  if(dataInPtr > 0){
+    Serial.println("Data Received"); 
+    for(int i = 0; i < dataInPtr; i++)
+      Serial.printf("%d\n",dataInBuf[i]);
+    portENTER_CRITICAL(&DataInmux);
+    dataInPtr = 0;  
+    portEXIT_CRITICAL(&DataInmux);
+    }
+  }

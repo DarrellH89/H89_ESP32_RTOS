@@ -23,21 +23,22 @@
 AsyncWebServer *server;  
 extern Config config;
 extern bool shouldReboot;
-const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n l: Prints license";
+const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n l: Prints license\n";
 // Test LED blinkers 
 const byte led1 = ALIVE_LED;
 unsigned long delayLed = 0;
 volatile int t1 = 0;
 
   //************** H89 data flags and buffer
-extern int currentStatus  ;          // status value for H89 to read
-extern int h89ReadData  ;    // status value for H89 data actually read
-extern int h89BytesToRead ;
+volatile int currentStatus  ;          // status value for H89 to read
+volatile int h89ReadData  ;    // status value for H89 data actually read
+volatile int h89BytesToRead ;
+int offset = 1;
 
 extern byte dataInBuf[256] ;
 extern int dataInPtr ;
 // Command control bytes
-extern byte cmdData[10];
+extern byte cmdData[CMD_LENGTH];
 extern byte cmdDataPtr  ;
 extern int8_t cmdFlag ;
 extern int8_t cmdLen ;
@@ -96,6 +97,7 @@ void handleMenu(){
         Serial.println("Resetting counters\n");
         last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
         bitCtr = 0;
+        offset = 1;
         t1 = 0;
         break;
       case 's':
@@ -133,12 +135,20 @@ void IRAM_ATTR intrHandle7C() {     // Data flag
   if((cmdFlag == 1) && (cmdDataPtr < cmdLen)){
     if(cmdDataPtr == 0)
       switch(temp){
-        case 0x8:
-        case 0x10:
+        case 0x08:
+        case 0x0A:
+        case 0x28:
+        case 0x2A:
           cmdLen = 4;
           break;
-        case 0x11:
+        case 0x11:      // list files with text
+          cmdLen = CMD_LENGTH;
+          break;
+        case 0x12:       // list files with file #
           cmdLen = 3;
+          break;
+        case 0x01:      // debug
+          cmdLen = 4;
           break;
         default:
           cmdLen = 1;

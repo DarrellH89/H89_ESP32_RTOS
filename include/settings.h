@@ -37,7 +37,7 @@
     #define DATA_OUT        0
     #define DATA_IN         1
 
-    #define CMD_LENGTH      4
+    #define CMD_LENGTH      40
     //***************** Interrupt Pins
     #define intr7C          35  
     #define intr7E          34    

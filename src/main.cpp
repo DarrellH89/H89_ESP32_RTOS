@@ -30,9 +30,9 @@ unsigned long delayLed = 0;
 volatile int t1 = 0;
 
   //************** H89 data flags and buffer
-volatile int currentStatus  ;          // status value for H89 to read
-volatile int h89ReadData  ;    // status value for H89 data actually read
-volatile int h89BytesToRead ;
+volatile int currentStatus  = 0;          // status value for H89 to read
+volatile int h89ReadData  = DATA_SENT;    // status value for H89 data actually read
+volatile int h89BytesToRead = 0;
 int offset = 1;
 
 extern byte dataInBuf[256] ;
@@ -135,7 +135,7 @@ void IRAM_ATTR intrHandle7C() {     // Data flag
   if((cmdFlag == 1) && (cmdDataPtr < cmdLen)){
     if(cmdDataPtr == 0)
       switch(temp){
-        case 0x08:
+        case 0x08:      // disk read/write
         case 0x0A:
         case 0x28:
         case 0x2A:
@@ -150,6 +150,10 @@ void IRAM_ATTR intrHandle7C() {     // Data flag
         case 0x01:      // debug
           cmdLen = 4;
           break;
+        case 0x03:      // last operation status
+        case 0x10:      // list files on micro SD card
+          cmdLen = 4;
+          break;  
         default:
           cmdLen = 1;
           break;  

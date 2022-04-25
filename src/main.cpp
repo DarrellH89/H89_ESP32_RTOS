@@ -23,7 +23,7 @@
 AsyncWebServer *server;  
 extern Config config;
 extern bool shouldReboot;
-const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n l: Prints license\n";
+const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n l: Prints license\n w: Set up WiFi";
 // Test LED blinkers 
 const byte led1 = ALIVE_LED;
 unsigned long delayLed = 0;
@@ -108,6 +108,9 @@ void handleMenu(){
         Serial.println("Clear NVM\n");
         setConfig(true);      
         break;
+      case 'w':
+        setupWifi();
+        break;  
       }
 }
 

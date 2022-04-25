@@ -53,7 +53,7 @@
     #define H89_OK_TO_READ  1
     #define H89_GOT_DATA    2
 
-    const String version = "Hi! I am H89-ESP32, Version 3.0 C";
+    const String version = "Hi! I am H89-ESP32, Version 3.0 C 4/24/22";
 
     //**************** SD Card pins
     #define SD_CLK  18

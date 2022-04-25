@@ -37,10 +37,7 @@ void setConfig(bool reset){
 
   if(reset){
     prefs.clear();
-        // prefs.putString("ssid", "pelan");
-        // prefs.putString("pw", "Datsun240z");
-        // prefs.putString("user", "admin");
-        // prefs.putString("httppw", "admin");
+
     return;
     }
   Serial.println("Loading Configuration ...");

@@ -94,7 +94,7 @@ void commands(){
     dataOutBufPtr = 0 ;  
     dataOutBufLast = 0;
   if(errCnt > 0){
-    Serial.printf("Data Out errors: %ld\n", errCnt);
+    Serial.printf("Data Ready Checks: %ld\n", errCnt);
     errCnt = 0;
     } 
   }

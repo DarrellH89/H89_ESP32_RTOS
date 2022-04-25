@@ -193,7 +193,6 @@ void IRAM_ATTR intrHandle7E() {     // Command flag
   // data is coming so set data lines for input
   setInput();
   setStatusPort(H89_WRITE_OK);
-
   intr7E_cnt++;
   cmdDataPtr = 0;
   cmdFlag = 1;
@@ -212,9 +211,8 @@ void setup() {
   server = new AsyncWebServer(WEB_SERVER);
   configureWebServer();  
   if(!SD.begin()){     //SD_CS,spi,80000000)){
-    Serial.println("Card Mount Failed");
-    return;
-}
+    Serial.println("*******Card Mount Failed **********\n");
+    }
 
    // H89 interface setup
   setPorts();
@@ -230,7 +228,7 @@ void setup() {
   setStatusPort(cmdFlag);
  
   Serial.println(version);
-  Serial.printf("Status %d\n", cmdFlag);
+  Serial.printf("cmdFlag %d\n", cmdFlag);
 
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
@@ -240,6 +238,7 @@ void setup() {
   Serial.printf("Heap: Free %d, Min: %d, Size: %d, Alloc: %d\n", ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getHeapSize(), ESP.getMaxAllocHeap());
   sentPtr = -1;
   Serial.printf(menuStr);
+  digitalWrite(led1,HIGH);
 }
 
 //************** LOOP ****************
@@ -259,7 +258,7 @@ void loop() {
   commands();
   
   if(intr7C_cnt - last7C >3){
-    Serial.printf("Interrupt 7C count = %d\n", intr7C_cnt);
+    Serial.printf("Interrupt 7C Write count = %d\n", intr7C_cnt);
     //Serial.printf("Cmd Ptr: %d Data Ptr: %d\n", cmdDataPtr, dataPtr);
     last7C = intr7C_cnt ;
     }

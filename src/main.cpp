@@ -209,10 +209,11 @@ void setup() {
   Serial.begin(115200);
   Serial.println(copyRightNoticeShort);
   dataInTimePtr = 0;
-  setupWifi();
-  Serial.println("Configuring Webserver ...");
-  server = new AsyncWebServer(WEB_SERVER);
-  configureWebServer();  
+  if(setupWifi()){
+    Serial.println("Configuring Webserver ...");
+    server = new AsyncWebServer(WEB_SERVER);
+    configureWebServer();  
+    }
   if(!SD.begin()){     //SD_CS,spi,80000000)){
     Serial.println("*******Card Mount Failed **********\n");
     }

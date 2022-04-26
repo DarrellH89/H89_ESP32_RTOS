@@ -84,7 +84,7 @@
     
     // End File Test Functions
 
-    void setupWifi();
+    bool setupWifi();
     void setupFileServer();
     void sdTest() ;
 
@@ -103,6 +103,6 @@
     void configureWebServer();
     void rebootESP(String message) ;
     String listFiles(bool ishtml) ;
-    void setConfig(bool reset);
+    bool setConfig(bool reset);
     void commands();
 #endif  

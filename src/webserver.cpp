@@ -1,6 +1,8 @@
 #include "settings.h"
 #include <AsyncElegantOTA.h>
 #include "webpages.h"
+#define RW_MODE false
+#define RO_MODE true
 
 String logmessage = "";
 // configuration structure
@@ -32,20 +34,24 @@ String askInfo(String what){
 }
 //***************** set Config
 // Get network parameters from NVM
-void setConfig(bool reset){
+bool setConfig(bool reset){
+  int check = 0;
   bool okay = false;
 
-  if(reset){
+  if(reset){            // kills the config namespace
+    prefs.begin("config",RW_MODE);
     prefs.clear();
+    prefs.end();
+    return okay;
+  }
 
-    return;
-    }
   Serial.println("Loading Configuration ...");
-  prefs.begin("config", false);
 
-  while(!okay){
+  while(!okay && check++ < 5){             // Try Five times to get the password data
     Serial.printf("Checking Data\n");
+    prefs.begin("config",RW_MODE);
     if(!prefs.isKey("ssid")){
+      Serial.println("ssid key NOT okay, ask for data");
       config.ssid = askInfo("ssid");
       config.wifipassword = askInfo("wifi password");
       config.httpuser = askInfo("web user id");
@@ -57,6 +63,8 @@ void setConfig(bool reset){
       prefs.putString("httppw", config.httppassword);
       Serial.printf("perf ssid: %s\n", prefs.getString("ssid", "crap").c_str());
     } else{
+            Serial.println("ssid key okay");
+            Serial.print("ssid: ");Serial.println(prefs.getString("ssid",""));
         config.ssid = prefs.getString("ssid","");
         config.wifipassword = prefs.getString("pw","");
         config.httpuser = prefs.getString("user","");
@@ -66,42 +74,49 @@ void setConfig(bool reset){
        config.wifipassword.length() > 1 &&
        config.httpuser.length() > 1 &&
        config.httppassword.length() > 1)
-       okay = true;
+        okay = true;
+    prefs.end();    
   }
   //Serial.printf("ssid %s, pw %s, http user %s, http pw: %s\n", config.ssid.c_str(), config.wifipassword.c_str(), config.httpuser.c_str(), config.httppassword.c_str());
   prefs.end();  
+  return okay;
  }
 
 //************ Setup WiFi *************
-void setupWifi(){
+bool setupWifi(){
+  bool result = false;
+  int attempts = 20;
   int cnt = 0;
   Serial.println("\nWiFi Configuration ...");
-  setConfig(false);
-
-  Serial.print("\nConnecting to Wifi: \n");
-  WiFi.begin(config.ssid.c_str(), config.wifipassword.c_str() );
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-    if(cnt++> 20){
-      Serial.printf("\nWiFi failed to connect\n");
-      return;
-    }
+  if(setConfig(false)){
+    Serial.print("\nConnecting to Wifi: \n");
+    WiFi.begin(config.ssid.c_str(), config.wifipassword.c_str() );
+    while (WiFi.status() != WL_CONNECTED && cnt++ < attempts) {
+      delay(500);
+      Serial.print(".");
+      Serial.print("Failed with state: "); Serial.println(WiFi.status());
+      }
+    if(cnt > attempts){
+        Serial.printf("\nWiFi failed to connect\n");
+      }
+      else{
+        Serial.println("\n\nNetwork Configuration:");
+        Serial.println("----------------------");
+        Serial.print("         SSID: "); Serial.println(WiFi.SSID());
+        Serial.print("  Wifi Status: "); Serial.println(WiFi.status());
+        Serial.print("Wifi Strength: "); Serial.print(WiFi.RSSI()); Serial.println(" dBm");
+        Serial.print("          MAC: "); Serial.println(WiFi.macAddress());
+        Serial.print("           IP: "); Serial.println(WiFi.localIP());
+        Serial.print("       Subnet: "); Serial.println(WiFi.subnetMask());
+        Serial.print("      Gateway: "); Serial.println(WiFi.gatewayIP());
+        Serial.print("        DNS 1: "); Serial.println(WiFi.dnsIP(0));
+        Serial.print("        DNS 2: "); Serial.println(WiFi.dnsIP(1));
+        Serial.print("        DNS 3: "); Serial.println(WiFi.dnsIP(2));
+        Serial.println();
+        result = true;
+      }
   }
-
-  Serial.println("\n\nNetwork Configuration:");
-  Serial.println("----------------------");
-  Serial.print("         SSID: "); Serial.println(WiFi.SSID());
-  Serial.print("  Wifi Status: "); Serial.println(WiFi.status());
-  Serial.print("Wifi Strength: "); Serial.print(WiFi.RSSI()); Serial.println(" dBm");
-  Serial.print("          MAC: "); Serial.println(WiFi.macAddress());
-  Serial.print("           IP: "); Serial.println(WiFi.localIP());
-  Serial.print("       Subnet: "); Serial.println(WiFi.subnetMask());
-  Serial.print("      Gateway: "); Serial.println(WiFi.gatewayIP());
-  Serial.print("        DNS 1: "); Serial.println(WiFi.dnsIP(0));
-  Serial.print("        DNS 2: "); Serial.println(WiFi.dnsIP(1));
-  Serial.print("        DNS 3: "); Serial.println(WiFi.dnsIP(2));
-  Serial.println();
+  return result;  
 }
 
 //************ Setup OTA Updates

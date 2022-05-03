@@ -23,7 +23,7 @@
 AsyncWebServer *server;  
 extern Config config;
 extern bool shouldReboot;
-const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n l: Prints license\n w: Set up WiFi";
+const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets counters\n s: SD card test\n c: Clears NVM\n m: Prints menu\n l: Prints license\n w: Set up WiFi\n\n";
 // Test LED blinkers 
 const byte led1 = ALIVE_LED;
 unsigned long delayLed = 0;
@@ -51,7 +51,13 @@ int last7C = 0;
 //int last7D = 0;
 int last7E = 0;
 int last7CRead = 0;
+//************* Timing debug counters
+volatile unsigned long cmdStart;
+volatile unsigned long cmdEnd;
+volatile unsigned long cmdLoopStart;
+volatile unsigned long cmdLoopEnd;
 
+//************* Interrupt flags
 portMUX_TYPE Cmdmux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE DataInmux = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE DataOutmux = portMUX_INITIALIZER_UNLOCKED;
@@ -96,6 +102,8 @@ void handleMenu(){
       case 'r':
         Serial.println("Resetting counters\n");
         last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
+        cmdFlag = 0;
+        cmdLen = CMD_LENGTH;
         bitCtr = 0;
         offset = 1;
         t1 = 0;
@@ -128,7 +136,7 @@ void IRAM_ATTR onTimer() {
 }
 
 // ************************************ Interrupt Hanedler H89 Write 7C *************************************
-void IRAM_ATTR intrHandle7C() {     // Data flag
+void IRAM_ATTR intrHandleWrite7C() {     // Data flag
   byte temp ;
   portENTER_CRITICAL_ISR(&mux);
    setStatusPort(ESP_BUSY);
@@ -155,7 +163,7 @@ void IRAM_ATTR intrHandle7C() {     // Data flag
           break;
         case 0x03:      // last operation status
         case 0x10:      // list files on micro SD card
-          cmdLen = 4;
+          cmdLen = 1;
           break;  
         default:
           cmdLen = 1;
@@ -169,6 +177,7 @@ void IRAM_ATTR intrHandle7C() {     // Data flag
     }   
   if(cmdDataPtr == cmdLen)  
     cmdFlag = 0;
+    cmdEnd = micros();
   setStatusPort(H89_WRITE_OK);
 
  //   ets_printf("dataOut Error: %d\n", errCnt);
@@ -177,19 +186,21 @@ void IRAM_ATTR intrHandle7C() {     // Data flag
  // digitalWrite(ISR_AWAKE, HIGH);
   portEXIT_CRITICAL_ISR(&mux);
 }
-// ************************************ Interrupt Hanedler H89 Read 7C *************************************
+// ************************************ Interrupt Handler H89 Read 7C *************************************
 void IRAM_ATTR intrHandleRead7C() {     // Data flag
   portENTER_CRITICAL_ISR(&mux);
   h89ReadData =  H89_GOT_DATA;
   intr7CRead_cnt++;
   if(h89BytesToRead >0){
       h89BytesToRead--;
-    if(h89BytesToRead == 0)  
-      setStatusPort(CMD_RDY);
+  if(h89BytesToRead == 0)  
+    setStatusPort(CMD_RDY);
+  else
+    setStatusPort(ESP_BUSY) ;
   }
-    portEXIT_CRITICAL_ISR(&mux);
+  portEXIT_CRITICAL_ISR(&mux);
 }
-// ************************************ Interrupt Hanedler H89 Write 7E *************************************
+// ************************************ Interrupt Handler H89 Write 7E *************************************
 void IRAM_ATTR intrHandle7E() {     // Command flag
   portENTER_CRITICAL_ISR(&Cmdmux);
   //if((long)(micros() - last_micros) >= debouncing_time * 1000) {
@@ -199,6 +210,7 @@ void IRAM_ATTR intrHandle7E() {     // Command flag
   intr7E_cnt++;
   cmdDataPtr = 0;
   cmdFlag = 1;
+  cmdStart = micros();
 
   portEXIT_CRITICAL_ISR(&Cmdmux);
 }
@@ -225,7 +237,7 @@ void setup() {
 
   pinMode(led1,OUTPUT);       // Keep alive LED
 
-  attachInterrupt(digitalPinToInterrupt(intr7C), intrHandle7C, FALLING);
+  attachInterrupt(digitalPinToInterrupt(intr7C), intrHandleWrite7C, FALLING);
   attachInterrupt(digitalPinToInterrupt(intr7E), intrHandle7E, FALLING);
   attachInterrupt(digitalPinToInterrupt(H89_READ_DATA), intrHandleRead7C, FALLING);
   cmdFlag = CMD_RDY;
@@ -234,10 +246,10 @@ void setup() {
   Serial.println(version);
   Serial.printf("cmdFlag %d\n", cmdFlag);
 
-  timer = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer, &onTimer, true);
-  timerAlarmWrite(timer, 1000000, true);
-  timerAlarmEnable(timer);
+  timer = timerBegin(0, 80, true);                  // set interrupt interval to 1 micro sec. ESP32 base clock 80 MHz
+  timerAttachInterrupt(timer, &onTimer, true);      // set interrupt function to call
+  timerAlarmWrite(timer, 1000000, true);            // set alarm for 1 sec
+  timerAlarmEnable(timer);                          // enable interrupt function
   // debug stuff
   Serial.printf("Heap: Free %d, Min: %d, Size: %d, Alloc: %d\n", ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getHeapSize(), ESP.getMaxAllocHeap());
   sentPtr = -1;
@@ -260,7 +272,13 @@ void loop() {
   
   // Check if all command bytes arrived
   commands();
-  
+  // debug code
+  if(cmdFlag > 0){
+    Serial.printf("Loop Command Byte: %X\n", cmdData[0]);
+    for( int i = 1; i < cmdDataPtr; i++)
+      Serial.println(cmdData[i]);
+  }
+  // end debug code
   if(intr7C_cnt - last7C >3){
     Serial.printf("Interrupt 7C Write count = %d\n", intr7C_cnt);
     //Serial.printf("Cmd Ptr: %d Data Ptr: %d\n", cmdDataPtr, dataPtr);

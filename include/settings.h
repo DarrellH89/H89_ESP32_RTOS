@@ -52,8 +52,9 @@
     #define DATA_SENT       0
     #define H89_OK_TO_READ  1
     #define H89_GOT_DATA    2
+    #define TIMEOUT         1000000
 
-    const String version = "Hi! I am H89-ESP32, Version 3.0 C 4/24/22";
+    const String version = "Hi! I am H89-ESP32, Version 3.0 D 4/30/22";
 
     //**************** SD Card pins
     #define SD_CLK  18
@@ -105,4 +106,5 @@
     String listFiles(bool ishtml) ;
     bool setConfig(bool reset);
     void commands();
+    void sendH89String(String sendIt);
 #endif  

@@ -35,8 +35,12 @@ volatile int h89ReadData  = DATA_SENT;    // status value for H89 data actually 
 volatile int h89BytesToRead = 0;
 int offset = 1;
 
-extern byte dataInBuf[256] ;
+extern byte dataInBuf[512] ;
 extern int dataInPtr ;
+// Data out bytes
+extern byte dataOutBuf[1024];
+extern int dataOutBufPtr ;
+extern int dataOutBufLast ;
 // Command control bytes
 extern byte cmdData[CMD_LENGTH];
 extern byte cmdDataPtr  ;
@@ -187,6 +191,25 @@ void IRAM_ATTR intrHandleWrite7C() {     // Data flag
   portEXIT_CRITICAL_ISR(&mux);
 }
 // ************************************ Interrupt Handler H89 Read 7C *************************************
+void IRAM_ATTR intrHandleRead7Ca() {     // Data flag
+  portENTER_CRITICAL_ISR(&mux);
+  h89ReadData =  H89_GOT_DATA;
+  intr7CRead_cnt++;
+  
+
+  if(dataOutBufPtr == h89BytesToRead){
+    h89BytesToRead = 0;
+    dataOutBufPtr =0;
+    cmdLoopEnd = micros();
+    setStatusPort(CMD_RDY);
+  }
+  else
+    dataOut(dataOutBuf[++dataOutBufPtr]);
+
+  
+  portEXIT_CRITICAL_ISR(&mux);
+}
+// ************************************ Interrupt Handler H89 Read 7C *************************************
 void IRAM_ATTR intrHandleRead7C() {     // Data flag
   portENTER_CRITICAL_ISR(&mux);
   h89ReadData =  H89_GOT_DATA;
@@ -273,11 +296,11 @@ void loop() {
   // Check if all command bytes arrived
   commands();
   // debug code
-  if(cmdFlag > 0){
-    Serial.printf("Loop Command Byte: %X\n", cmdData[0]);
-    for( int i = 1; i < cmdDataPtr; i++)
-      Serial.println(cmdData[i]);
-  }
+  // if(cmdFlag > 0){
+  //   Serial.printf("Loop Command Byte: %X\n", cmdData[0]);
+  //   for( int i = 1; i < cmdDataPtr; i++)
+  //     Serial.println(cmdData[i]);
+  // }
   // end debug code
   if(intr7C_cnt - last7C >3){
     Serial.printf("Interrupt 7C Write count = %d\n", intr7C_cnt);

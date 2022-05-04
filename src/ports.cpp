@@ -8,6 +8,7 @@ extern int pinInOut;
 extern int currentStatus;
 extern int h89BytesToRead;
 extern int h89ReadData ;
+
 //******************************************
 
 //******************** setOutput **********************

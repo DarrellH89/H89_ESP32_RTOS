@@ -6,7 +6,7 @@ extern int currentStatus  ;          // status value for H89 to read
 extern int h89ReadData  ;    // status value for H89 data actually read
 extern int h89BytesToRead ;
 
-volatile byte dataInBuf[256] ;
+volatile byte dataInBuf[512] ;
 volatile int dataInPtr = 0;
 // Command control bytes
 volatile byte cmdData[10];
@@ -33,6 +33,8 @@ extern unsigned long cmdStart;
 extern unsigned long cmdEnd;
 extern unsigned long cmdLoopStart;
 extern unsigned long cmdLoopEnd;
+int bytesToSend =0;
+volatile unsigned long cmdPortStart, cmdPortEnd;
 
 //**************** commands
 void commands(){
@@ -40,11 +42,10 @@ void commands(){
     // Check if all command bytes arrived
   if (cmdDataPtr >= cmdLen){
     // load data to send back
-    cmdLoopStart = micros();
     switch(cmdData[0]){
       case 1:
-        debug();
         cmdGotStr = micros();
+        debug();
         break;  
       case 0x10:
         String temp = listFiles(false);
@@ -54,9 +55,8 @@ void commands(){
       }
     cmdFlag = 0;
     cmdLen = CMD_LENGTH; 
-    cmdLoopEnd = micros();
-    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Cmd Loop Start %lu, Got String: %lu, Cmd Loop End %lu\n", 
-      0, cmdEnd-cmdStart, cmdLoopStart-cmdStart, cmdGotStr-cmdStart, cmdLoopEnd-cmdStart);
+    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu, Cmd Loop Start %lu, Cmd Loop End %lu, USec/Byte %lu\n", 
+      cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
   }  
 
 
@@ -83,20 +83,29 @@ void commands(){
     dataOutBufLast = dataOutBufPtr + sendCnt  ;
     // Send 4 bytes of buffer data
     h89BytesToRead = 4;               // set value for H89 bytes to send 
+    bytesToSend = h89BytesToRead;
     h89ReadData = DATA_SENT;          // Set to something other than H89_OK_TO_READ
-    Serial.printf(" Buffer Last %d, Buffer Ptr %d\n", dataOutBufLast, dataOutBufPtr);
+    //Serial.printf(" Buffer Last %d, Buffer Ptr %d\n", dataOutBufLast, dataOutBufPtr);
     if(dataOutBufLast - dataOutBufPtr == 4){        // send four bytes back to H89
       int temp = dataOutBufPtr;
+      Serial.println("Start");
+      //
+      cmdPortStart = micros();
+      setOutput();
+      cmdPortEnd = micros();
+      //
+      cmdLoopStart = micros();
       while(temp < dataOutBufLast){
         if(dataOut(dataOutBuf[temp]) == DATA_SENT){
-          Serial.printf("Data Ready Checks: %lu\n",errCnt);
+          //Serial.printf("Data Ready Checks: %lu\n",errCnt);
           //sent[++sentPtr] = dataOutBuf[temp];
           temp++;
           }
         else 
           errCnt++;  
         }
-    
+      cmdLoopEnd = micros();
+      Serial.println("End");
     // print cmd bytes received
     for(int i = 0; i < cmdLen; i++){
       Serial.printf("Cmd Byte %d\n", cmdData[i]);
@@ -125,16 +134,31 @@ void sendH89String(String sendIt){
 
   strLen = sendIt.length()+1;
   Serial.printf("\n\nString length: %d\n", strLen);
-  char strArray[strLen+1];
+  char strArray[strLen];
   strcpy(strArray, sendIt.c_str());
-  strArray[strLen] = 0;
+  strArray[strLen-2] = 0;             // should work with -1, not sure why it needs to be -2
+
   // byte temp[strLen+1];
-  // for(int i = 0; i < strLen+1; i++)
-  //   temp[i] = strArray[i];
+  for(int i = 0; i < strLen+1; i++)
+     dataOutBuf[i] = strArray[i];
   Serial.println(sendIt);
-  h89BytesToRead = strLen+1;
+  h89BytesToRead = strLen;
+  // h89BytesToRead =50;
+  //strArray[strLen] =0;
   h89ReadData = DATA_SENT;
   strPtr = 0;           // shouldn't need this
+  bytesToSend = h89BytesToRead;
+  //
+  cmdPortStart = micros();
+  setOutput();
+  cmdPortEnd = micros();
+  cmdLoopStart = micros();
+  dataOutBufPtr = 0;
+  // dataOut(dataOutBuf[dataOutBufPtr]);
+  // while(dataOutBufPtr <= h89BytesToRead)
+  //   if(micros()-cmdLoopStart > 60000)
+  //     break;
+  //
   while(strPtr < strLen){
     if(dataOut(strArray[strPtr]) == DATA_SENT){
       //Serial.printf("StrPtr: %d, Retry attempts: %d, strLen: %d, H89 Bytes %d\n", strPtr, retry, strLen, h89BytesToRead);
@@ -150,6 +174,7 @@ void sendH89String(String sendIt){
     // strPtr++;
     
   }
+  cmdLoopEnd = micros();
   setStatusPort(CMD_RDY)  ;
-  Serial.printf("Exit sendH89String %d, Retry Cnt: %d\n", strPtr, retry);
+  Serial.printf("Exit sendH89String %d, Retry Cnt: %d, Last Char %x\n", strPtr, retry, strArray[strPtr-1]);
 }

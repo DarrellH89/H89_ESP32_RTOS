@@ -12,20 +12,23 @@ Current project status is in the Status directory.
 
 The command interface between the H-89 and ESP32 is listed below:
 
+Web Features:
+* Webpage listing files on micro SD card with ability to upload/download/delete
+* Ability to reboot ESP32
+* Over The Air updates for firmware
+
 Commands:
+Implemented
+* List Files on the micro SD card
+* Debug - simple get four bytes from H89, add 1 to each byte and send them back
+* Get file from H89 using Xmodem protocol with CRC
+* Reboot ESP32 by writing to Command port twice
 
-Read Status of last operation
-
-Read sectors using Cylinder/Head/Sector (CHS)
-
-Write Sectors using CHS
-
-List Files on the micro SD card
-
-Select disk image using text file name
-
-Select disk image using file number
-
-Read sectors using LBA
-
-Write Sectors using LBA
+Under Development
+* Read Status of last operation
+* Read sectors using Cylinder/Head/Sector (CHS)
+* Write Sectors using CHS
+* Select disk image using text file name
+* Select disk image using file number
+* Read sectors using LBA
+* Write Sectors using LBA

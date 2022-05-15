@@ -39,7 +39,7 @@ extern unsigned long cmdStart;
 extern unsigned long cmdEnd;
 extern unsigned long cmdLoopStart;
 extern unsigned long cmdLoopEnd;
-int bytesToSend =0;
+unsigned long bytesToSend =0;
 volatile unsigned long cmdPortStart, cmdPortEnd;
 
 //**************** commands
@@ -69,7 +69,6 @@ void commands(){
          if(!getH89File(fName))
           Serial.println("File upload failed");
 
-         bytesToSend = dataInPtr;
          break;  
       default:
          break;
@@ -77,8 +76,8 @@ void commands(){
     cmdFlag = 0;                  // done processing command, reset flag
     cmdLen = CMD_LENGTH; 
     setStatusPort(CMD_RDY)  ;
-    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop Start %lu, Cmd Loop End %lu, USec/Byte %lu\n", 
-      cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
+    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop Start %lu, Cmd Loop End %lu, Bytes: %lu, USec/Byte %lu\n", 
+      cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
   }  
 // if( dataInPtr > t){
 //   Serial.printf("DatainBufPtr: %d\n", dataInPtr);

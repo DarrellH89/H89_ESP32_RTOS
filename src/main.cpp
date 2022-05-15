@@ -51,9 +51,9 @@ extern int8_t cmdFlag ;
 extern int8_t cmdLen ;
 
 //************* Interupt Counters
-volatile int intr7C_cnt = 0;
+volatile uint32_t intr7C_cnt = 0;
 volatile int  intr7E_cnt = 0;
-volatile int  intr7CRead_cnt = 0;
+volatile uint32_t  intr7CRead_cnt = 0;
 int last7C = 0;
 int last7E = 0;
 int last7CRead = 0;

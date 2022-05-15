@@ -12,7 +12,7 @@
 
 
    //******** Webserver related variables
-   #define FIRMWARE_VERSION "v0.0.1"
+   #define FIRMWARE_VERSION "v0.1.1"
     struct Config {
         String ssid;               // wifi ssid
         String wifipassword;       // wifi password
@@ -56,8 +56,11 @@
     // #define H89_GOT_DATA    2
     #define TIMEOUT         3000             // milli seconds
     #define HOLD -1                             // disable timeOutCounter
+ 
 
-    const String version = "Hi! I am H89-ESP32, Version 3.0 E 5/3/22";
+    //************** Version and Debug
+    const String version = "Hi! I am H89-ESP32, Version 3.1 A 5/15/22";
+    #define DEBUG  false
 
     //**************** SD Card pins
     #define SD_CLK  18

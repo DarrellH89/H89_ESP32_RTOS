@@ -87,6 +87,7 @@ bool setupWifi(){
   bool result = false;
   int attempts = 20;
   int cnt = 0;
+  String errorType[] = {"0", "No SSID Available", "Scan Completed", "Connected", "Connection Failed","Connection Lost","Disconnected"};
   Serial.println("\nWiFi Configuration ...");
   if(setConfig(false)){
     Serial.print("\nConnecting to Wifi: \n");
@@ -325,6 +326,7 @@ void rebootESP(String message) {
 // list all of the files, if ishtml=true, return html rather than simple text
 String listFiles(bool ishtml) {
   String returnText = "";
+  int cnt = 1;
   Serial.println("Listing files stored on SD");
   File root = SD.open("/");
   File foundfile = root.openNextFile();
@@ -337,7 +339,8 @@ String listFiles(bool ishtml) {
       returnText += "<td><button onclick=\"downloadDeleteButton(\'" + String(foundfile.name()) + "\', \'download\')\">Download</button>";
       returnText += "<td><button onclick=\"downloadDeleteButton(\'" + String(foundfile.name()) + "\', \'delete\')\">Delete</button></tr>";
     } else {
-      returnText += "File: " + String(foundfile.name()) + " Size: " + humanReadableSize(foundfile.size()) + "\n";
+      returnText += String(cnt) +": "+ String(foundfile.name()) + " Size: " + humanReadableSize(foundfile.size()) + "\n";
+      cnt++;
     }
     foundfile = root.openNextFile();
   }

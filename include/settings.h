@@ -38,23 +38,26 @@
     #define DATA_IN         1
 
     #define CMD_LENGTH      40
+    #define BUFFER_LEN      1024
     //***************** Interrupt Pins
     #define intr7C          35  
     #define intr7E          34    
     #define H89_READ_DATA   21
-    //*************** Status values
-    #define MAX_READ_WAIT   10000
+    //*************** H89 Status Port values also written to currentStatus
+   // #define MAX_READ_WAIT   10000
     #define CMD_RDY         0b00000000
     #define H89_READ_OK     0b00000001
     #define H89_WRITE_OK    0b00000010   
     #define ESP_BUSY        0b00000011
-    #define DATA_NOT_READ   2
-    #define DATA_SENT       0
-    #define H89_OK_TO_READ  1
-    #define H89_GOT_DATA    2
-    #define TIMEOUT         1000000
+    //*************** H89 Read/Write values
+    #define DATA_NOT_READ   4
+    #define DATA_SENT       5
+    // #define H89_OK_TO_READ  1
+    // #define H89_GOT_DATA    2
+    #define TIMEOUT         3000             // milli seconds
+    #define HOLD -1                             // disable timeOutCounter
 
-    const String version = "Hi! I am H89-ESP32, Version 3.0 D 4/30/22";
+    const String version = "Hi! I am H89-ESP32, Version 3.0 E 5/3/22";
 
     //**************** SD Card pins
     #define SD_CLK  18
@@ -107,4 +110,12 @@
     bool setConfig(bool reset);
     void commands();
     void sendH89String(String sendIt);
+    String getH89FileName();
+    bool getH89File(String fname);
+    bool getData(byte &x);
+    int getDataTime( byte &x, int time);
+    int sendDataTime( byte x, int time);
+    int getH89Int();
+    void printDataBufPtr();
+    uint16_t calcrc(byte *ptr, int count);
 #endif  

@@ -58,7 +58,9 @@ void setStatusPort(byte status){
 
 //********************* DataOut ******************
 byte dataOut(byte data){
-    if(h89ReadData == H89_OK_TO_READ)
+  //  if(h89ReadData == H89_OK_TO_READ)
+   //Serial.printf("DataOut: %d\n", data);
+    if(currentStatus == H89_READ_OK)
         return DATA_NOT_READ;
     setStatusPort(ESP_BUSY );  
  
@@ -73,9 +75,9 @@ byte dataOut(byte data){
     }
     digitalWrite(DATA_OUT_OE, LOW);     // Latch data
     // Tell the H89 to read byte
-    h89ReadData = H89_OK_TO_READ;
+   // h89ReadData = H89_OK_TO_READ;
     setStatusPort(H89_READ_OK );  
- 
+
     return DATA_SENT;
 }
 //****************************************

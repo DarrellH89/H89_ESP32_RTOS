@@ -28,19 +28,22 @@ const char* menuStr = "Menu\n v: Prints version\n b: Reboots system\n r: Resets 
 const byte led1 = ALIVE_LED;
 unsigned long delayLed = 0;
 volatile int t1 = 0;
+volatile unsigned long timeOutStart = 0;
 
   //************** H89 data flags and buffer
 volatile int currentStatus  = 0;          // status value for H89 to read
-volatile int h89ReadData  = DATA_SENT;    // status value for H89 data actually read
+// volatile int h89ReadData  = DATA_SENT;    // status value for H89 data actually read
 volatile int h89BytesToRead = 0;
 int offset = 1;
-
-extern byte dataInBuf[512] ;
+// Data In Buffer 
+extern byte dataInBuf[BUFFER_LEN] ;
 extern int dataInPtr ;
+extern int dataInLast ;          // pointer to valid data. No data iof dataInLast = dataInPtr
+extern bool bufferFull ;     // flag to indicate buffer is full
 // Data out bytes
-extern byte dataOutBuf[1024];
-extern int dataOutBufPtr ;
-extern int dataOutBufLast ;
+// extern byte dataOutBuf[BUFFER_LEN];
+// extern int dataOutBufPtr ;
+// extern int dataOutBufLast ;
 // Command control bytes
 extern byte cmdData[CMD_LENGTH];
 extern byte cmdDataPtr  ;
@@ -52,9 +55,9 @@ volatile int intr7C_cnt = 0;
 volatile int  intr7E_cnt = 0;
 volatile int  intr7CRead_cnt = 0;
 int last7C = 0;
-//int last7D = 0;
 int last7E = 0;
 int last7CRead = 0;
+
 //************* Timing debug counters
 volatile unsigned long cmdStart;
 volatile unsigned long cmdEnd;
@@ -110,6 +113,10 @@ void handleMenu(){
         cmdLen = CMD_LENGTH;
         bitCtr = 0;
         offset = 1;
+        // Reset data in buffer pointers
+        dataInPtr = 0;           // Ptr to next position to write data
+        dataInLast = 0;          // pointer to valid data. No data iof dataInLast = dataInPtr
+        bufferFull = false;     // flag to indicate buffer is full
         t1 = 0;
         break;
       case 's':
@@ -128,7 +135,8 @@ void handleMenu(){
 
 /********************************* Delay interrupt timer ***************************/
 volatile int interruptCounter;
-int totalInterruptCounter;
+volatile int timeOutCounter = HOLD;
+int totalInterruptCounter = 0;
   
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
@@ -136,17 +144,24 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR onTimer() {
   portENTER_CRITICAL_ISR(&timerMux);
   interruptCounter++;
+  if(timeOutCounter >= 0){
+    if(timeOutCounter-- == 0){
+      ets_printf("Timeout %lu\n", millis()-timeOutStart);
+      ESP.restart();
+    }
+  }
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-// ************************************ Interrupt Hanedler H89 Write 7C *************************************
+// ************************************ Interrupt Handler H89 Write 7C *************************************
 void IRAM_ATTR intrHandleWrite7C() {     // Data flag
   byte temp ;
-  portENTER_CRITICAL_ISR(&mux);
-   setStatusPort(ESP_BUSY);
+  portENTER_CRITICAL_ISR(&DataInmux);
+  setStatusPort(ESP_BUSY);
 
   intr7C_cnt++;
   temp = dataIn();
+  //ets_printf("Data %d, C Flag %d, C Ptr %d, D Last %d, D Ptr %d\n", temp, cmdFlag, cmdDataPtr, dataInLast, dataInPtr);
   if((cmdFlag == 1) && (cmdDataPtr < cmdLen)){
     if(cmdDataPtr == 0)
       switch(temp){
@@ -168,60 +183,86 @@ void IRAM_ATTR intrHandleWrite7C() {     // Data flag
         case 0x03:      // last operation status
         case 0x10:      // list files on micro SD card
           cmdLen = 1;
-          break;  
+          break; 
+        case 0x30:      // upload file
+        case 0x31:      // download file
+          cmdLen = 1;
+          break;   
         default:
           cmdLen = 1;
           break;  
       }
     cmdData[cmdDataPtr++] = temp;
-    //ets_printf("cmd %d\n", cmdData[cmdDataPtr-1]);
+    //ets_printf("CMD Data %d\n", cmdData[cmdDataPtr-1]);
   }
   else {
-    dataInBuf[dataInPtr++] = temp;
-    }   
+    if(!bufferFull){
+      dataInBuf[dataInPtr++] = temp;
+      //ets_printf("data: %d, dataPtr: %d\n",temp, dataInPtr-1);
+      if(dataInPtr == BUFFER_LEN)
+        dataInPtr = 0;
+      if(dataInPtr == dataInLast)
+        bufferFull = true;
+    }
+    else
+      ets_printf("Buffer FULL - Data LOST %d\n", temp);
+  }
   if(cmdDataPtr == cmdLen)  
     cmdFlag = 0;
     cmdEnd = micros();
-  setStatusPort(H89_WRITE_OK);
+  if(!bufferFull)  
+    setStatusPort(H89_WRITE_OK);
+  else  
+    setStatusPort(ESP_BUSY)  ;
 
+//ets_printf("cmdFlag %d, CmdDataPtr %d, DataInPtr %d, DataInLast %d, BufferFull %d\n", cmdFlag, cmdDataPtr,dataInPtr, dataInLast, bufferFull);
  //   ets_printf("dataOut Error: %d\n", errCnt);
     // ataPtr, (long)micros()-last_micros);        // Safe to use in an interrupt routine
     //cmdFlag = 4;
  // digitalWrite(ISR_AWAKE, HIGH);
-  portEXIT_CRITICAL_ISR(&mux);
+  portEXIT_CRITICAL_ISR(&DataInmux);
 }
-// ************************************ Interrupt Handler H89 Read 7C *************************************
-void IRAM_ATTR intrHandleRead7Ca() {     // Data flag
-  portENTER_CRITICAL_ISR(&mux);
-  h89ReadData =  H89_GOT_DATA;
-  intr7CRead_cnt++;
-  
 
-  if(dataOutBufPtr == h89BytesToRead){
-    h89BytesToRead = 0;
-    dataOutBufPtr =0;
-    cmdLoopEnd = micros();
-    setStatusPort(CMD_RDY);
-  }
-  else
-    dataOut(dataOutBuf[++dataOutBufPtr]);
+//******************************** get Data ************************************
+bool getData(byte &x){
+  bool result = true;
 
-  
-  portEXIT_CRITICAL_ISR(&mux);
+    // if(offset == 1){
+    //   Serial.printf("GD Bufferfull %d, dataInPtr %d, dataInLast %d\n", bufferFull, dataInPtr, dataInLast)  ;
+    //   offset++;
+    // }
+  portENTER_CRITICAL_ISR(&DataInmux);
+  if( (!bufferFull && dataInLast != dataInPtr)|| bufferFull){
+      x = dataInBuf[dataInLast++];
+      if(dataInLast == BUFFER_LEN)
+        dataInLast = 0; 
+      bufferFull = false;  
+   //   ets_printf("GD: %c\n", x);    
+    } 
+    else
+      result = false;  
+
+    // if(dataInLast == dataInPtr)  
+    //   bufferFull = true;
+  portEXIT_CRITICAL_ISR(&DataInmux); 
+  return result ;
 }
+
 // ************************************ Interrupt Handler H89 Read 7C *************************************
+// H89 read port 7C
 void IRAM_ATTR intrHandleRead7C() {     // Data flag
-  portENTER_CRITICAL_ISR(&mux);
-  h89ReadData =  H89_GOT_DATA;
+  portENTER_CRITICAL_ISR(&DataOutmux);
+ // h89ReadData =  H89_GOT_DATA;
   intr7CRead_cnt++;
-  if(h89BytesToRead >0){
+  if(h89BytesToRead >0)
       h89BytesToRead--;
-  if(h89BytesToRead == 0)  
-    setStatusPort(CMD_RDY);
-  else
-    setStatusPort(ESP_BUSY) ;
-  }
-  portEXIT_CRITICAL_ISR(&mux);
+  // if(h89BytesToRead == 0)  
+  //   setStatusPort(CMD_RDY);
+  // else
+  //ets_printf("H89 Read cnt: %d, h89 Bytes to Read %d\n", intr7CRead_cnt, h89BytesToRead);
+  setStatusPort(ESP_BUSY) ;
+  //}
+  portEXIT_CRITICAL_ISR(&DataOutmux);
 }
 // ************************************ Interrupt Handler H89 Write 7E *************************************
 void IRAM_ATTR intrHandle7E() {     // Command flag
@@ -232,6 +273,8 @@ void IRAM_ATTR intrHandle7E() {     // Command flag
   setStatusPort(H89_WRITE_OK);
   intr7E_cnt++;
   cmdDataPtr = 0;
+  if(cmdFlag == 1)        // reset from H89
+    ESP.restart();
   cmdFlag = 1;
   cmdStart = micros();
 
@@ -278,6 +321,14 @@ void setup() {
   sentPtr = -1;
   Serial.printf(menuStr);
   digitalWrite(led1,HIGH);
+
+  // crc Test
+  // int j = 0;
+  // byte *p;
+  // for(j = 0; j < 10; j++)
+  //   dataInBuf[j] = j;
+  // p = dataInBuf;  
+  // Serial.printf("CRC Test %x\n", calcrc(p, 10))  ;
 }
 
 //************** LOOP ****************
@@ -331,4 +382,10 @@ void loop() {
         digitalWrite(led1,HIGH);
   }
 
+}
+
+//******************** printDataBufPtr ************
+void printDataBufPtr(){
+
+  Serial.printf("Data %d, C Flag %d, C Ptr %d, D Last %d, D Ptr %d\n", dataInBuf[dataInLast], cmdFlag, cmdDataPtr, dataInLast, dataInPtr);
 }

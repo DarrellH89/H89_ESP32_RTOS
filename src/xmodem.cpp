@@ -13,6 +13,7 @@ extern unsigned long cmdLoopEnd;
 extern uint32_t  intr7CRead_cnt;
 extern uint32_t intr7C_cnt;
 
+//************** get H89 File ******************
 bool getH89File( String fname )  {
   int j, i ;
   byte  first = 0;
@@ -102,9 +103,8 @@ bool getH89File( String fname )  {
           break;
       }
     if(DEBUG)  
-      Serial.printf("retry: %u, first %d\n", retry, first)  ;
+      Serial.printf("retry: %lu, first %x\n", retry, first)  ;
     if( first == SOH ) {
-//      time = 100;  
       getDataTime(scur, TIMEOUT);          /*  real sector number  */
       getDataTime(scomp, TIMEOUT);         /*  inverse of above */
       if(DEBUG)
@@ -241,147 +241,168 @@ bool getH89File( String fname )  {
 //       }
 //   }
 
-// /********************* Send FX **********************/
-// /* Send a file XMODEM
-// */
+/********************* Send FX **********************/
+/* Send a file XMODEM
+*/
 
-// SendFX( fp )
-//   int fp;
-//   {
-//   static int j, i ;
-//   static int first, snum, errors, chksum, nbytes, transize, flagEOT ;
-//   static int crc ;
-//   static int mode ;    /* 0 = Checksum, 1 = CRC, 2 = Ymodem */
+ bool sendH89File( String fname)
+  {
+  int j, i , time;
+  byte first, snum;
+  int transize, flagEOT ;
+  uint32_t errors, nbytes, errmax;
+  uint16_t crc ;
+ //bool ok = false;
+  byte start ;
+  byte buffer[BLOCK];
+  int buffPtr = 0;
+  static uint32_t lastMillis = 0;
+  long retry = 0;
+  bool ok = true;
 
-//   int fpo ;
+  errmax = errormax ;
+  errors = 0;
+  setStatusPort( H89_WRITE_OK);
+  // Open SD card
+  if(!SD.begin()){     //SD_CS,spi,80000000)){
+        Serial.println("Card Mount Failed");
+        ok = false;
+    }
+    uint8_t cardType = SD.cardType();
 
-//   snum = 1 ;
-//   mode = 0 ;
-//   transize = 128 ;    /*  block transmission size */
-//   errors = 0;
-//   flagEOT = 0 ;
-//   rcvptr = rcvbuf;
+  if(cardType == CARD_NONE){
+        Serial.println("No SD card attached");
+        ok = false;
+    }
+    // end SD card open
 
-//   nbytes = read( fp, rcvbuf, BLOCK );    /* get the first block of data */
-// /*
-// fpo = fopen( "dummy","wb") ;
-// write( fpo, rcvbuf, BLOCK );
-// fclose( fpo ) ;
-// fpo = fopen( "dummy1","wb") ;
-// printf("rcvptr %x, rcvbuf %x\n", rcvptr, rcvbuf ) ;
-// */
-//   if ( nbytes < BLOCK )
-//       flagEOT += 1 ;       /* flag last block read */
-//   if (nbytes == 0 )
-//       {
-//       printf( "Error! Empty File\n") ;
-//       goto ESCAPE ;
-//       }
-//   printf("Trying to send file\n");
-//   do          /* check for initial NAK to start transfer */
-//       if ( (first = getDataTime(60)) != NAK )
-//         if (first == 'C' )
-//             {
-//             mode = 1 ;
-//             printf( "CRC requested\n" );
-//             }
-//           else
-//             {
-//             errors += 1 ;            /* increment error counter */
-//             printf( "Error! Timeout # %d.  Recieved %x\n", errors, first );
-//             if (GetCon() == CAN)
-//                 errors += errormax ;    /* Keyboard abort */
-//             }
-//       while ( ((first != 'C')&&(first != NAK))&&(errors < errormax )) ;
+  Serial.printf("\nTrying to send file ");
+  fname = "/" + fname;
+  Serial.println(fname);
+  File file = SD.open(fname, "r");
+  if(!file){
+    const char * c = fname.c_str();
+    Serial.printf("Failed to open file %s", c);
+    ok =  false;
+  }
+  if(!ok){
+    while(dataOut( EOT ) != DATA_SENT);
+    return false;
+  }
 
-//   if ( (first == NAK)||(first == 'C') )            /* okay to start transfer */
-//       {
-//       errors  = 0 ;        /* reset counter */
-//       do  {
-//           printf("%cSending sector # %d", CR, snum );
-//           if (GetCon() == CAN)
-//               errors += errormax ;    /* Keyboard abort */
-//           Send( SOH );
-//           Send( snum ) ;
-//           Send( ~snum ) ;   /* 1's complement */
-//           chksum = 0 ;
-//           crc = 0 ;
-//           for ( j = 0; j < transize ; j++ )   /* send one block */
-//               {
-//               Send( *(rcvptr+j) );
-//               switch( mode )
-//                   {
-//                   case 0: chksum += *(rcvptr+j) ;
-//                           break ;
-//                   case 1: crc = crc ^ (int) *(rcvptr+j)<<8 ;
-//                           for(i = 0; i < 8; i++ )
-//                               if (crc &0x8000)
-//                                   crc = crc << 1 ^ 0x1021 ;
-//                                 else
-//                                   crc = crc << 1 ;
-//                           break ;
-//                   }
-//               }
-//           switch ( mode )
-//               {
-//               case 0: Send( chksum ) ;
-//                       break ;
-//               case 1: Send( (crc >> 8)&0x00ff ) ;
-//                       Send( crc & 0x00ff )    ;
-//                       break ;
-//               }
-//           do          /* check for ACK timeout for block transfer */
-//               if ( (first = getDataTime(10)) == timeout )
-//                   errors += 1 ;            /* increment error counter */
-//               while ( (first == timeout)&&(errors < errormax) ) ;
-//           if ( first == ACK )
-//               {
-//               snum += 1 ;    /* increment sector counter */
-//               rcvptr += transize ;    /* update buffer pointer */
-//               if ( ((unsigned) rcvptr - (unsigned) rcvbuf) >= nbytes )
-//                   if ( flagEOT > 0 )         /* already read last block */
-//                       nbytes = 0 ;
-//                     else
-//                       {                      /* need to fill buffer */
-//                       nbytes = read( fp, rcvbuf, BLOCK );
-//                       printf("\nReading %d bytes!\n", nbytes);
-//                       rcvptr = rcvbuf ;
-//                       if ( nbytes < BLOCK )
-//                           flagEOT += 1 ;       /* flag last block read */
-//                       }
-//               }
-//             else         /* Error, garbled ACK */
-//               {
-//               errors += 1 ;
-//               if (first == NAK)
-//                   printf("Error! Bad Sector # %d\n", snum ) ;
-//                 else
-//                   printf("Error! Garbled ACK, Sector # %d\n", snum ) ;
-//               }
-//           } while ( (nbytes > 0)&&(errors < errormax ) ) ;
-//       }
+  transize = 128 ;    /*  block transmission size */
+  errmax = errormax;
+  snum = 1 ;
+  errors = 0;
+  flagEOT = 0 ;
+  file.seek(1, SeekSet);
+  nbytes = file.read( buffer, BLOCK );    /* get the first block of data */
 
-//   Send( EOT ) ;
-//   if ( (first = getDataTime(10)) != ACK )   /* One freebie NAK */
-//      {
-//      Send( EOT) ;
-//      do {
-//          if ( (first = getDataTime(10)) != ACK )
-//              {
-//              errors += 1 ;
-//              printf("\nError! EOT not ACKed.  Recieved %xh\n", first );
-//              Send( EOT ) ;                    /* resend on error */
-//              }
-//          } while ( (first != ACK)&&( errors < errormax )) ;
-//      }
+  if ( nbytes < BLOCK )
+      flagEOT += 1 ;       /* flag last block read */
+  if (nbytes == 0 )
+      {
+      printf( "Error! Empty File\n") ;
+      goto ESCAPE ;
+      }
+  Serial.printf("Trying to send file\n");
+  timeOutCounter = 10;
+  do   {       /* check for initial NAK to start transfer */
+    if ( getDataTime(first, TIMEOUT) == 0 )
+      if( DEBUG)
+        Serial.println("Initial Timeout\n");
+    Serial.printf("Initial loop errors: %d, first: %d\n", errors, first)    ;
+    if (first != byte('C') ){
+      errors ++ ;            /* increment error counter */
+      printf( "Error! Timeout # %d.  Recieved %x\n", errors, first );
+      }
+  } while ( ((first != byte('C'))&&(first != NAK))&&(errors < errmax )) ;
+  timeOutCounter = HOLD;
+  if(DEBUG)
+    Serial.println("Start sending file");
+  if ( (first == byte('C')) )            /* okay to start transfer */
+    {
+    errors  = 0 ;        /* reset counter */
+    do  {
+      if(DEBUG)
+        printf("%cSending sector # %d", CR, snum );
+      timeOutCounter = 10 ;               // set timeout for 10 sec
+      while(dataOut( SOH ) != DATA_SENT);
+      /*
+      if(sendDataTime(snum, 500)== 0 && DEBUG)        // alternative send method
+        Serial.printf("snum send error %d\n", snum);
+        */
+      while(dataOut( snum ) != DATA_SENT);
+      while(dataOut( ~snum ) != DATA_SENT);     /* 1's complement */
+      timeOutCounter = HOLD;
+      crc = 0 ;
+      for ( j = 0; j < transize ; j++ )   /* send one block */
+        {
+        while( sendDataTime( buffer[buffPtr], 500) == 0 );
+        crc = crc ^ (int) buffer[buffPtr]<<8 ;
+        buffPtr++;
+        for(i = 0; i < 8; i++ )
+          if (crc &0x8000)
+            crc = crc << 1 ^ 0x1021 ;
+          else
+            crc = crc << 1 ;
+        }
+      while( sendDataTime( (crc >> 8)&0x00ff, 500 ) == 0);
+      while( sendDataTime( crc & 0x00ff, 500 ) == 0)    ;
+      do    {      /* check for ACK timeout for block transfer */
+        time = getDataTime( first, TIMEOUT);
+        if (time == 0 )
+          errors += 1 ;            /* increment error counter */
+        }  
+        while ( (time == 0)&&(errors < errormax) ) ;
+        if ( first == ACK )
+          {
+          snum += 1 ;    /* increment sector counter */
+          if ( flagEOT > 0 && buffPtr == nbytes)         /* already read last block */
+            nbytes = 0 ;
+          else      /* need to fill buffer */
+            if(buffPtr == nbytes){
+              nbytes = file.read( buffer, BLOCK );    /* get the next block of data */
+              if(DEBUG)
+                printf("\nReading %d bytes!\n", nbytes);
+              buffPtr = 0;
+              if ( nbytes < BLOCK )
+                  flagEOT += 1 ;       /* flag last block read */
+              }
+          else         /* Error, garbled ACK */
+            {
+            errors += 1 ;
+            if (first == NAK)
+                printf("Error! Bad Sector # %d\n", snum ) ;
+              else
+                printf("Error! Garbled ACK, Sector # %d\n", snum ) ;
+            }
+          }  
+        } while ( (nbytes > 0)&&(errors < errormax ) ) ;
+    }
 
-//   if (errors < errormax )
-//       printf("\nTransfer complete") ;
-//     else
-//       printf("\nAborting");
-//   ESCAPE:
-//   fclose( fp ) ;
-//   }
+  while( sendDataTime( EOT, 500) == 0)    ;
+  if ( (getDataTime(first, 500)) != ACK )   /* One freebie NAK */
+     {
+     while( sendDataTime( EOT, 500) == 0)    ;
+     do {
+         if ( (getDataTime(first, 500)) == 0 || first != ACK )
+             {
+             errors += 1 ;
+             printf("\nError! EOT not ACKed.  Recieved %xh\n", first );
+             sendDataTime( EOT, 500) ;                    /* resend on error */
+             }
+         } while ( (first != ACK)&&( errors < errormax )) ;
+     }
+
+  if (errors < errormax )
+      printf("\nTransfer complete") ;
+    else
+      printf("\nAborting");
+  ESCAPE:
+  file.close()  ;
+  return true;
+  }
 
 
 //*************** calCrc ***************

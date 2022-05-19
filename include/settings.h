@@ -60,7 +60,7 @@
 
     //************** Version and Debug
     const String version = "Hi! I am H89-ESP32, Version 3.1 A 5/15/22";
-    #define DEBUG  false
+    #define DEBUG  true
 
     //**************** SD Card pins
     #define SD_CLK  18
@@ -115,6 +115,7 @@
     void sendH89String(String sendIt);
     String getH89FileName();
     bool getH89File(String fname);
+    bool sendH89File( String fname);
     bool getData(byte &x);
     int getDataTime( byte &x, int time);
     int sendDataTime( byte x, int time);

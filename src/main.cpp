@@ -182,8 +182,6 @@ void IRAM_ATTR intrHandleWrite7C() {     // Data flag
           break;
         case 0x03:      // last operation status
         case 0x10:      // list files on micro SD card
-          cmdLen = 1;
-          break; 
         case 0x30:      // upload file
         case 0x31:      // download file
           cmdLen = 1;

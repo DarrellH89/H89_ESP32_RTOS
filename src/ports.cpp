@@ -49,6 +49,8 @@ void setPorts(){
 
 //******************* setStatusPort *****************
 void setStatusPort(byte status){
+    if (status != currentStatus)
+        ets_printf("Status: Old %d New %d\n", currentStatus, status);
     currentStatus = status;
     digitalWrite(STATUS_BIT_0, status & 1);
     digitalWrite(STATUS_BIT_1, status & 2);

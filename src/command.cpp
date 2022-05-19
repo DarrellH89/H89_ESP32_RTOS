@@ -57,8 +57,9 @@ void commands(){
         debug();
         break;  
       case 0x10:
+        setStatusPort(ESP_BUSY);
         temp = listFiles(false);
-        cmdGotStr = micros();
+        cmdGotStr = micros(); 
         sendH89String(temp);
         break;  
       case 0x30:
@@ -68,8 +69,15 @@ void commands(){
          //Serial.printf("File Size: %d\n",getH89Int());
          if(!getH89File(fName))
           Serial.println("File upload failed");
-
          break;  
+      case 0x31:
+         fName = getH89FileName();
+         Serial.print("Filename: ");
+         Serial.println(fName);
+         //Serial.printf("File Size: %d\n",getH89Int());
+         if(!sendH89File(fName))
+          Serial.println("File download failed");
+         break;    
       default:
          break;
       }
@@ -78,19 +86,7 @@ void commands(){
     setStatusPort(CMD_RDY)  ;
     Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop Start %lu, Cmd Loop End %lu, Bytes: %lu, USec/Byte %lu\n", 
       cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
-  }  
-// if( dataInPtr > t){
-//   Serial.printf("DatainBufPtr: %d\n", dataInPtr);
-//   t = dataInPtr;
-// }
-  // if(dataInPtr > 0){
-  //   Serial.println("Data Received"); 
-  //   for(int i = 0; i < dataInPtr; i++)
-  //     Serial.printf("%d\n",dataInBuf[i]);
-  //   portENTER_CRITICAL(&mux);
-  //   dataInPtr = 0;  
-  //   portEXIT_CRITICAL(&mux);
-  //   }
+    }  
   }
 
   //****************** debug() **************
@@ -157,7 +153,7 @@ void sendH89String(String sendIt){
   strcpy(strArray, sendIt.c_str());
   strArray[strLen-2] = 0;             // should work with -1, not sure why it needs to be -2
 
-  Serial.println(sendIt);
+ // Serial.println(sendIt);
   strPtr = 0;           // shouldn't need this
   bytesToSend = strLen;
 
@@ -166,22 +162,22 @@ void sendH89String(String sendIt){
   cmdPortEnd = micros();
   cmdLoopStart = micros();
 
-
+  //setStatusPort(H89_READ_OK);
+  // delay(100);
   while(strPtr < strLen){
     if(dataOut(strArray[strPtr]) == DATA_SENT){
-      //Serial.printf("StrPtr: %d, Retry attempts: %d, strLen: %d, H89 Bytes %d\n", strPtr, retry, strLen, h89BytesToRead);
+      Serial.print(strArray[strPtr]);
       strPtr++;
       retry = 0;
     }
-    else{
+    else
       retry++;  
-    }
-    if(retry > TIMEOUT)
+    if(retry > TIMEOUT*2)
       break;
-    // Serial.printf("pos: %d Hex: %x Val: %c\n",strPtr,strArray[strPtr],strArray[strPtr]);
-    // strPtr++;
-    
-  }
+    }
+  Serial.println();  
+  if(strPtr < strLen)
+    Serial.printf("String timeout Error strPtr: %d\n", strPtr);
   cmdLoopEnd = micros();
   setStatusPort(CMD_RDY)  ;
   Serial.printf("Exit sendH89String %d, Retry Cnt: %d, Last Char %x\n", strPtr, retry, strArray[strPtr-1]);

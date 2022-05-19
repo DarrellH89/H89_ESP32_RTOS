@@ -87,6 +87,7 @@ bool setupWifi(){
   bool result = false;
   int attempts = 20;
   int cnt = 0;
+  int errorMsg;
   String errorType[] = {"0", "No SSID Available", "Scan Completed", "Connected", "Connection Failed","Connection Lost","Disconnected"};
   Serial.println("\nWiFi Configuration ...");
   if(setConfig(false)){
@@ -95,7 +96,10 @@ bool setupWifi(){
     while (WiFi.status() != WL_CONNECTED && cnt++ < attempts) {
       delay(500);
       Serial.print(".");
-      Serial.print("Failed with state: "); Serial.println(WiFi.status());
+      errorMsg = WiFi.status();
+      if(errorMsg == 255)
+        errorMsg = 0 ;
+      Serial.print("Failed with state: "); Serial.println(errorType[errorMsg]);
       }
     if(cnt > attempts){
         Serial.printf("\nWiFi failed to connect\n");

@@ -9,7 +9,7 @@
     #include <ESPAsyncWebServer.h>
     #include <WiFi.h>
     #include <Preferences.h>
-
+#endif 
 
    //******** Webserver related variables
    #define FIRMWARE_VERSION "v0.1.1"
@@ -54,12 +54,13 @@
     #define DATA_SENT       5
     // #define H89_OK_TO_READ  1
     // #define H89_GOT_DATA    2
-    #define TIMEOUT         3000             // milli seconds
+    #define TIMEOUT         30000             // milli seconds
+    #define TIMEOUT_CNT      300000
     #define HOLD -1                             // disable timeOutCounter
  
 
     //************** Version and Debug
-    const String version = "Hi! I am H89-ESP32, Version 3.1 A 5/15/22";
+    const String version = "Hi! I am H89-ESP32, Version 3.3 A 6/1/22";
     #define DEBUG  true
 
     //**************** SD Card pins
@@ -122,4 +123,5 @@
     int getH89Int();
     void printDataBufPtr();
     uint16_t calcrc(byte *ptr, int count);
-#endif  
+    void resetCounters();
+ 

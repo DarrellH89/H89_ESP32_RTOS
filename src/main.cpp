@@ -89,6 +89,24 @@ long debouncing_time = 1000; //Debouncing Time in Milliseconds
 volatile unsigned long last_micros;
 //volatile byte dataOutFlag = 1 ;
 
+//***************** reset Counters
+void resetCounters(){
+  Serial.println("Resetting counters\n");
+  last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
+  cmdFlag = 0;
+  cmdLen = CMD_LENGTH;
+  bitCtr = 0;
+  offset = 1;
+  // Reset data in buffer pointers
+  dataInPtr = 0;           // Ptr to next position to write data
+  dataInLast = 0;          // pointer to valid data. No data iof dataInLast = dataInPtr
+  bufferFull = false;     // flag to indicate buffer is full
+  setStatusPort(CMD_RDY);
+  t1 = 0;
+}
+
+
+
 //******************* handle Menu *****************
 void handleMenu(){
   String dataStr = Serial.readString();
@@ -107,17 +125,7 @@ void handleMenu(){
         ESP.restart();
         break;
       case 'r':
-        Serial.println("Resetting counters\n");
-        last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
-        cmdFlag = 0;
-        cmdLen = CMD_LENGTH;
-        bitCtr = 0;
-        offset = 1;
-        // Reset data in buffer pointers
-        dataInPtr = 0;           // Ptr to next position to write data
-        dataInLast = 0;          // pointer to valid data. No data iof dataInLast = dataInPtr
-        bufferFull = false;     // flag to indicate buffer is full
-        t1 = 0;
+        resetCounters();
         break;
       case 's':
         Serial.println("SD Card test\n");
@@ -230,12 +238,13 @@ bool getData(byte &x){
     //   offset++;
     // }
   portENTER_CRITICAL_ISR(&DataInmux);
+  // valid data if buffeFull false and dataInlast not equal to DataInPtr or if BufferFull is true
   if( (!bufferFull && dataInLast != dataInPtr)|| bufferFull){
       x = dataInBuf[dataInLast++];
       if(dataInLast == BUFFER_LEN)
         dataInLast = 0; 
       bufferFull = false;  
-   //   ets_printf("GD: %c\n", x);    
+      ets_printf("GD: %c\n", x);    
     } 
     else
       result = false;  
@@ -385,5 +394,5 @@ void loop() {
 //******************** printDataBufPtr ************
 void printDataBufPtr(){
 
-  Serial.printf("Data %d, C Flag %d, C Ptr %d, D Last %d, D Ptr %d\n", dataInBuf[dataInLast], cmdFlag, cmdDataPtr, dataInLast, dataInPtr);
+  Serial.printf("Data %x, C Flag %d, C Ptr %d, D Last %d, D Ptr %d\n", dataInBuf[dataInLast], cmdFlag, cmdDataPtr, dataInLast, dataInPtr);
 }

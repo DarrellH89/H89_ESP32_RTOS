@@ -1,0 +1,496 @@
+diff --git a/H89_ESP32 Commands.xlsx b/H89_ESP32 Commands.xlsx
+index 67f1e72..2134e6a 100644
+Binary files a/H89_ESP32 Commands.xlsx and b/H89_ESP32 Commands.xlsx differ
+diff --git a/include/settings.h b/include/settings.h
+index 82ddd40..0ce9cac 100644
+--- a/include/settings.h
++++ b/include/settings.h
+@@ -59,8 +59,8 @@
+  
+ 
+     //************** Version and Debug
+-    const String version = "Hi! I am H89-ESP32, Version 3.1 A 5/15/22";
+-    #define DEBUG  false
++    const String version = "Hi! I am H89-ESP32, Version 3.2 A 5/18/22";
++    #define DEBUG  true
+ 
+     //**************** SD Card pins
+     #define SD_CLK  18
+@@ -115,6 +115,7 @@
+     void sendH89String(String sendIt);
+     String getH89FileName();
+     bool getH89File(String fname);
++    bool sendH89File( String fname);
+     bool getData(byte &x);
+     int getDataTime( byte &x, int time);
+     int sendDataTime( byte x, int time);
+diff --git a/src/command.cpp b/src/command.cpp
+index 33898ca..1be3bf6 100644
+--- a/src/command.cpp
++++ b/src/command.cpp
+@@ -57,8 +57,9 @@ void commands(){
+         debug();
+         break;  
+       case 0x10:
++        setStatusPort(ESP_BUSY);
+         temp = listFiles(false);
+-        cmdGotStr = micros();
++        cmdGotStr = micros(); 
+         sendH89String(temp);
+         break;  
+       case 0x30:
+@@ -68,8 +69,15 @@ void commands(){
+          //Serial.printf("File Size: %d\n",getH89Int());
+          if(!getH89File(fName))
+           Serial.println("File upload failed");
+-
+          break;  
++      case 0x31:
++         fName = getH89FileName();
++         Serial.print("Filename: ");
++         Serial.println(fName);
++         //Serial.printf("File Size: %d\n",getH89Int());
++         if(!sendH89File(fName))
++          Serial.println("File download failed");
++         break;    
+       default:
+          break;
+       }
+@@ -78,19 +86,7 @@ void commands(){
+     setStatusPort(CMD_RDY)  ;
+     Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop Start %lu, Cmd Loop End %lu, Bytes: %lu, USec/Byte %lu\n", 
+       cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
+-  }  
+-// if( dataInPtr > t){
+-//   Serial.printf("DatainBufPtr: %d\n", dataInPtr);
+-//   t = dataInPtr;
+-// }
+-  // if(dataInPtr > 0){
+-  //   Serial.println("Data Received"); 
+-  //   for(int i = 0; i < dataInPtr; i++)
+-  //     Serial.printf("%d\n",dataInBuf[i]);
+-  //   portENTER_CRITICAL(&mux);
+-  //   dataInPtr = 0;  
+-  //   portEXIT_CRITICAL(&mux);
+-  //   }
++    }  
+   }
+ 
+   //****************** debug() **************
+@@ -157,7 +153,7 @@ void sendH89String(String sendIt){
+   strcpy(strArray, sendIt.c_str());
+   strArray[strLen-2] = 0;             // should work with -1, not sure why it needs to be -2
+ 
+-  Serial.println(sendIt);
++ // Serial.println(sendIt);
+   strPtr = 0;           // shouldn't need this
+   bytesToSend = strLen;
+ 
+@@ -166,22 +162,22 @@ void sendH89String(String sendIt){
+   cmdPortEnd = micros();
+   cmdLoopStart = micros();
+ 
+-
++  //setStatusPort(H89_READ_OK);
++  // delay(100);
+   while(strPtr < strLen){
+     if(dataOut(strArray[strPtr]) == DATA_SENT){
+-      //Serial.printf("StrPtr: %d, Retry attempts: %d, strLen: %d, H89 Bytes %d\n", strPtr, retry, strLen, h89BytesToRead);
++      Serial.print(strArray[strPtr]);
+       strPtr++;
+       retry = 0;
+     }
+-    else{
++    else
+       retry++;  
+-    }
+-    if(retry > TIMEOUT)
++    if(retry > TIMEOUT*2)
+       break;
+-    // Serial.printf("pos: %d Hex: %x Val: %c\n",strPtr,strArray[strPtr],strArray[strPtr]);
+-    // strPtr++;
+-    
+-  }
++    }
++  Serial.println();  
++  if(strPtr < strLen)
++    Serial.printf("String timeout Error strPtr: %d\n", strPtr);
+   cmdLoopEnd = micros();
+   setStatusPort(CMD_RDY)  ;
+   Serial.printf("Exit sendH89String %d, Retry Cnt: %d, Last Char %x\n", strPtr, retry, strArray[strPtr-1]);
+diff --git a/src/main.cpp b/src/main.cpp
+index 2cf4a5d..9b52bb4 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -182,8 +182,6 @@ void IRAM_ATTR intrHandleWrite7C() {     // Data flag
+           break;
+         case 0x03:      // last operation status
+         case 0x10:      // list files on micro SD card
+-          cmdLen = 1;
+-          break; 
+         case 0x30:      // upload file
+         case 0x31:      // download file
+           cmdLen = 1;
+diff --git a/src/ports.cpp b/src/ports.cpp
+index 9cf6e67..c50befa 100644
+--- a/src/ports.cpp
++++ b/src/ports.cpp
+@@ -49,6 +49,8 @@ void setPorts(){
+ 
+ //******************* setStatusPort *****************
+ void setStatusPort(byte status){
++    if (status != currentStatus)
++        ets_printf("Status: Old %d New %d\n", currentStatus, status);
+     currentStatus = status;
+     digitalWrite(STATUS_BIT_0, status & 1);
+     digitalWrite(STATUS_BIT_1, status & 2);
+diff --git a/src/webserver.cpp b/src/webserver.cpp
+index b671d9e..37c8672 100644
+--- a/src/webserver.cpp
++++ b/src/webserver.cpp
+@@ -87,6 +87,7 @@ bool setupWifi(){
+   bool result = false;
+   int attempts = 20;
+   int cnt = 0;
++  int errorMsg;
+   String errorType[] = {"0", "No SSID Available", "Scan Completed", "Connected", "Connection Failed","Connection Lost","Disconnected"};
+   Serial.println("\nWiFi Configuration ...");
+   if(setConfig(false)){
+@@ -95,7 +96,10 @@ bool setupWifi(){
+     while (WiFi.status() != WL_CONNECTED && cnt++ < attempts) {
+       delay(500);
+       Serial.print(".");
+-      Serial.print("Failed with state: "); Serial.println(WiFi.status());
++      errorMsg = WiFi.status();
++      if(errorMsg == 255)
++        errorMsg = 0 ;
++      Serial.print("Failed with state: "); Serial.println(errorType[errorMsg]);
+       }
+     if(cnt > attempts){
+         Serial.printf("\nWiFi failed to connect\n");
+diff --git a/src/xmodem.cpp b/src/xmodem.cpp
+index ba92881..bfa9999 100644
+--- a/src/xmodem.cpp
++++ b/src/xmodem.cpp
+@@ -13,6 +13,7 @@ extern unsigned long cmdLoopEnd;
+ extern uint32_t  intr7CRead_cnt;
+ extern uint32_t intr7C_cnt;
+ 
++//************** get H89 File ******************
+ bool getH89File( String fname )  {
+   int j, i ;
+   byte  first = 0;
+@@ -102,9 +103,8 @@ bool getH89File( String fname )  {
+           break;
+       }
+     if(DEBUG)  
+-      Serial.printf("retry: %u, first %d\n", retry, first)  ;
++      Serial.printf("retry: %lu, first %x\n", retry, first)  ;
+     if( first == SOH ) {
+-//      time = 100;  
+       getDataTime(scur, TIMEOUT);          /*  real sector number  */
+       getDataTime(scomp, TIMEOUT);         /*  inverse of above */
+       if(DEBUG)
+@@ -241,147 +241,168 @@ bool getH89File( String fname )  {
+ //       }
+ //   }
+ 
+-// /********************* Send FX **********************/
+-// /* Send a file XMODEM
+-// */
++/********************* Send FX **********************/
++/* Send a file XMODEM
++*/
+ 
+-// SendFX( fp )
+-//   int fp;
+-//   {
+-//   static int j, i ;
+-//   static int first, snum, errors, chksum, nbytes, transize, flagEOT ;
+-//   static int crc ;
+-//   static int mode ;    /* 0 = Checksum, 1 = CRC, 2 = Ymodem */
++ bool sendH89File( String fname)
++  {
++  int j, i , time;
++  byte first, snum;
++  int transize, flagEOT ;
++  uint32_t errors, nbytes, errmax;
++  uint16_t crc ;
++ //bool ok = false;
++  byte start ;
++  byte buffer[BLOCK];
++  int buffPtr = 0;
++  static uint32_t lastMillis = 0;
++  long retry = 0;
++  bool ok = true;
+ 
+-//   int fpo ;
++  errmax = errormax ;
++  errors = 0;
++  setStatusPort( H89_WRITE_OK);
++  // Open SD card
++  if(!SD.begin()){     //SD_CS,spi,80000000)){
++        Serial.println("Card Mount Failed");
++        ok = false;
++    }
++    uint8_t cardType = SD.cardType();
+ 
+-//   snum = 1 ;
+-//   mode = 0 ;
+-//   transize = 128 ;    /*  block transmission size */
+-//   errors = 0;
+-//   flagEOT = 0 ;
+-//   rcvptr = rcvbuf;
++  if(cardType == CARD_NONE){
++        Serial.println("No SD card attached");
++        ok = false;
++    }
++    // end SD card open
+ 
+-//   nbytes = read( fp, rcvbuf, BLOCK );    /* get the first block of data */
+-// /*
+-// fpo = fopen( "dummy","wb") ;
+-// write( fpo, rcvbuf, BLOCK );
+-// fclose( fpo ) ;
+-// fpo = fopen( "dummy1","wb") ;
+-// printf("rcvptr %x, rcvbuf %x\n", rcvptr, rcvbuf ) ;
+-// */
+-//   if ( nbytes < BLOCK )
+-//       flagEOT += 1 ;       /* flag last block read */
+-//   if (nbytes == 0 )
+-//       {
+-//       printf( "Error! Empty File\n") ;
+-//       goto ESCAPE ;
+-//       }
+-//   printf("Trying to send file\n");
+-//   do          /* check for initial NAK to start transfer */
+-//       if ( (first = getDataTime(60)) != NAK )
+-//         if (first == 'C' )
+-//             {
+-//             mode = 1 ;
+-//             printf( "CRC requested\n" );
+-//             }
+-//           else
+-//             {
+-//             errors += 1 ;            /* increment error counter */
+-//             printf( "Error! Timeout # %d.  Recieved %x\n", errors, first );
+-//             if (GetCon() == CAN)
+-//                 errors += errormax ;    /* Keyboard abort */
+-//             }
+-//       while ( ((first != 'C')&&(first != NAK))&&(errors < errormax )) ;
++  Serial.printf("\nTrying to send file ");
++  fname = "/" + fname;
++  Serial.println(fname);
++  File file = SD.open(fname, "r");
++  if(!file){
++    const char * c = fname.c_str();
++    Serial.printf("Failed to open file %s", c);
++    ok =  false;
++  }
++  if(!ok){
++    while(dataOut( EOT ) != DATA_SENT);
++    return false;
++  }
+ 
+-//   if ( (first == NAK)||(first == 'C') )            /* okay to start transfer */
+-//       {
+-//       errors  = 0 ;        /* reset counter */
+-//       do  {
+-//           printf("%cSending sector # %d", CR, snum );
+-//           if (GetCon() == CAN)
+-//               errors += errormax ;    /* Keyboard abort */
+-//           Send( SOH );
+-//           Send( snum ) ;
+-//           Send( ~snum ) ;   /* 1's complement */
+-//           chksum = 0 ;
+-//           crc = 0 ;
+-//           for ( j = 0; j < transize ; j++ )   /* send one block */
+-//               {
+-//               Send( *(rcvptr+j) );
+-//               switch( mode )
+-//                   {
+-//                   case 0: chksum += *(rcvptr+j) ;
+-//                           break ;
+-//                   case 1: crc = crc ^ (int) *(rcvptr+j)<<8 ;
+-//                           for(i = 0; i < 8; i++ )
+-//                               if (crc &0x8000)
+-//                                   crc = crc << 1 ^ 0x1021 ;
+-//                                 else
+-//                                   crc = crc << 1 ;
+-//                           break ;
+-//                   }
+-//               }
+-//           switch ( mode )
+-//               {
+-//               case 0: Send( chksum ) ;
+-//                       break ;
+-//               case 1: Send( (crc >> 8)&0x00ff ) ;
+-//                       Send( crc & 0x00ff )    ;
+-//                       break ;
+-//               }
+-//           do          /* check for ACK timeout for block transfer */
+-//               if ( (first = getDataTime(10)) == timeout )
+-//                   errors += 1 ;            /* increment error counter */
+-//               while ( (first == timeout)&&(errors < errormax) ) ;
+-//           if ( first == ACK )
+-//               {
+-//               snum += 1 ;    /* increment sector counter */
+-//               rcvptr += transize ;    /* update buffer pointer */
+-//               if ( ((unsigned) rcvptr - (unsigned) rcvbuf) >= nbytes )
+-//                   if ( flagEOT > 0 )         /* already read last block */
+-//                       nbytes = 0 ;
+-//                     else
+-//                       {                      /* need to fill buffer */
+-//                       nbytes = read( fp, rcvbuf, BLOCK );
+-//                       printf("\nReading %d bytes!\n", nbytes);
+-//                       rcvptr = rcvbuf ;
+-//                       if ( nbytes < BLOCK )
+-//                           flagEOT += 1 ;       /* flag last block read */
+-//                       }
+-//               }
+-//             else         /* Error, garbled ACK */
+-//               {
+-//               errors += 1 ;
+-//               if (first == NAK)
+-//                   printf("Error! Bad Sector # %d\n", snum ) ;
+-//                 else
+-//                   printf("Error! Garbled ACK, Sector # %d\n", snum ) ;
+-//               }
+-//           } while ( (nbytes > 0)&&(errors < errormax ) ) ;
+-//       }
++  transize = 128 ;    /*  block transmission size */
++  errmax = errormax;
++  snum = 1 ;
++  errors = 0;
++  flagEOT = 0 ;
++  file.seek(1, SeekSet);
++  nbytes = file.read( buffer, BLOCK );    /* get the first block of data */
+ 
+-//   Send( EOT ) ;
+-//   if ( (first = getDataTime(10)) != ACK )   /* One freebie NAK */
+-//      {
+-//      Send( EOT) ;
+-//      do {
+-//          if ( (first = getDataTime(10)) != ACK )
+-//              {
+-//              errors += 1 ;
+-//              printf("\nError! EOT not ACKed.  Recieved %xh\n", first );
+-//              Send( EOT ) ;                    /* resend on error */
+-//              }
+-//          } while ( (first != ACK)&&( errors < errormax )) ;
+-//      }
++  if ( nbytes < BLOCK )
++      flagEOT += 1 ;       /* flag last block read */
++  if (nbytes == 0 )
++      {
++      printf( "Error! Empty File\n") ;
++      goto ESCAPE ;
++      }
++  Serial.printf("Trying to send file\n");
++  timeOutCounter = 10;
++  do   {       /* check for initial NAK to start transfer */
++    if ( getDataTime(first, TIMEOUT) == 0 )
++      if( DEBUG)
++        Serial.println("Initial Timeout\n");
++    Serial.printf("Initial loop errors: %d, first: %d\n", errors, first)    ;
++    if (first != byte('C') ){
++      errors ++ ;            /* increment error counter */
++      printf( "Error! Timeout # %d.  Recieved %x\n", errors, first );
++      }
++  } while ( ((first != byte('C'))&&(first != NAK))&&(errors < errmax )) ;
++  timeOutCounter = HOLD;
++  if(DEBUG)
++    Serial.println("Start sending file");
++  if ( (first == byte('C')) )            /* okay to start transfer */
++    {
++    errors  = 0 ;        /* reset counter */
++    do  {
++      if(DEBUG)
++        printf("%cSending sector # %d", CR, snum );
++      timeOutCounter = 10 ;               // set timeout for 10 sec
++      while(dataOut( SOH ) != DATA_SENT);
++      /*
++      if(sendDataTime(snum, 500)== 0 && DEBUG)        // alternative send method
++        Serial.printf("snum send error %d\n", snum);
++        */
++      while(dataOut( snum ) != DATA_SENT);
++      while(dataOut( ~snum ) != DATA_SENT);     /* 1's complement */
++      timeOutCounter = HOLD;
++      crc = 0 ;
++      for ( j = 0; j < transize ; j++ )   /* send one block */
++        {
++        while( sendDataTime( buffer[buffPtr], 500) == 0 );
++        crc = crc ^ (int) buffer[buffPtr]<<8 ;
++        buffPtr++;
++        for(i = 0; i < 8; i++ )
++          if (crc &0x8000)
++            crc = crc << 1 ^ 0x1021 ;
++          else
++            crc = crc << 1 ;
++        }
++      while( sendDataTime( (crc >> 8)&0x00ff, 500 ) == 0);
++      while( sendDataTime( crc & 0x00ff, 500 ) == 0)    ;
++      do    {      /* check for ACK timeout for block transfer */
++        time = getDataTime( first, TIMEOUT);
++        if (time == 0 )
++          errors += 1 ;            /* increment error counter */
++        }  
++        while ( (time == 0)&&(errors < errormax) ) ;
++        if ( first == ACK )
++          {
++          snum += 1 ;    /* increment sector counter */
++          if ( flagEOT > 0 && buffPtr == nbytes)         /* already read last block */
++            nbytes = 0 ;
++          else      /* need to fill buffer */
++            if(buffPtr == nbytes){
++              nbytes = file.read( buffer, BLOCK );    /* get the next block of data */
++              if(DEBUG)
++                printf("\nReading %d bytes!\n", nbytes);
++              buffPtr = 0;
++              if ( nbytes < BLOCK )
++                  flagEOT += 1 ;       /* flag last block read */
++              }
++          else         /* Error, garbled ACK */
++            {
++            errors += 1 ;
++            if (first == NAK)
++                printf("Error! Bad Sector # %d\n", snum ) ;
++              else
++                printf("Error! Garbled ACK, Sector # %d\n", snum ) ;
++            }
++          }  
++        } while ( (nbytes > 0)&&(errors < errormax ) ) ;
++    }
+ 
+-//   if (errors < errormax )
+-//       printf("\nTransfer complete") ;
+-//     else
+-//       printf("\nAborting");
+-//   ESCAPE:
+-//   fclose( fp ) ;
+-//   }
++  while( sendDataTime( EOT, 500) == 0)    ;
++  if ( (getDataTime(first, 500)) != ACK )   /* One freebie NAK */
++     {
++     while( sendDataTime( EOT, 500) == 0)    ;
++     do {
++         if ( (getDataTime(first, 500)) == 0 || first != ACK )
++             {
++             errors += 1 ;
++             printf("\nError! EOT not ACKed.  Recieved %xh\n", first );
++             sendDataTime( EOT, 500) ;                    /* resend on error */
++             }
++         } while ( (first != ACK)&&( errors < errormax )) ;
++     }
++
++  if (errors < errormax )
++      printf("\nTransfer complete") ;
++    else
++      printf("\nAborting");
++  ESCAPE:
++  file.close()  ;
++  return true;
++  }
+ 
+ 
+ //*************** calCrc ***************

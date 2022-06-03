@@ -28,7 +28,7 @@
 
 #define lastbyte 128
 #define timeout   -1
-#define errormax  10
+#define errormax  20
 #define retrymax  10
 #define BLOCK   4096        /* must be multiple of 1024 */
 #define TBLOCK  4096        /* must be multiple of 1024 */

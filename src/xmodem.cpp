@@ -12,20 +12,36 @@ extern unsigned long cmdLoopStart;
 extern unsigned long cmdLoopEnd;
 extern uint32_t  intr7CRead_cnt;
 extern uint32_t intr7C_cnt;
+extern int dataInPtr ;
+extern int dataInLast ;
+extern byte dataInBuf[BUFFER_LEN] ;
+
+//********** calc CRC ***********
+int calcCRC(int crc, int data){
+  int i;
+  crc = crc ^ (int)(data) << 8 ;
+  for(i = 0; i < 8; i++ )
+    if (crc & 0x8000)
+      crc = (crc << 1) ^ 0x1021 ;
+    else
+      crc = crc << 1 ;
+  return crc;      
+}
 
 //************** get H89 File ******************
 bool getH89File( String fname )  {
-  int j, i ;
+  int j, i;
+  int k = 0;
   byte  first = 0;
   byte snum,scur, scomp, chk1, chk2, temp;
-  int errors, errmax ;
-  int transize ;
+  int errors, errmax, transize ;
   uint16_t crc;
   bool ok = false;
   byte start ;
   byte buffer[BLOCK];
   int buffPtr = 0;
   static uint32_t lastMillis = 0;
+  long retryLast;
   long retry = 0;
 
   errmax = errormax ;
@@ -92,14 +108,24 @@ bool getH89File( String fname )  {
     ok = FALSE ;
     first = 0;
     retry = 0;
+    retryLast = retry;
     while (!(( first == SOH)||( first == EOT)) ){
       if(!getData( first) )
         retry++;
-      if(DEBUG && retry % 200 == 0){
-        Serial.print("Do Loop: ");
-        printDataBufPtr();  
+      if(DEBUG && retry % 10000 == 0 && k != dataInPtr && retry > retryLast){
+        retryLast = retry;
+        Serial.println("***************");
+        for (j = k; j <  dataInPtr; j++)
+          if(dataInBuf[j]<20 || dataInBuf[j]> 128)
+            Serial.printf("\n%x\n", dataInBuf[j]);
+          else 
+            Serial.print(char(dataInBuf[j]));
+        k = j;    
+        // Serial.print("Do Loop: ");
+        // printDataBufPtr();  
+        Serial.printf("\n-------------- Retry: %d, Last: %d, Ptr: %d \n", retry, dataInLast, dataInPtr);
       }
-      if(retry > 10000)
+      if(retry > TIMEOUT_CNT)
           break;
       }
     if(DEBUG)  
@@ -116,27 +142,26 @@ bool getH89File( String fname )  {
             timeOutCounter = 10;               // timeout counter set to 10 sec
             while(!getData(buffer[buffPtr]) );
             timeOutCounter = HOLD; 
-            crc = crc ^ (int)(buffer[buffPtr]) << 8 ;
-            for(i = 0; i < 8; i++ )
-              if (crc & 0x8000)
-                crc = (crc << 1) ^ 0x1021 ;
-              else
-                crc = crc << 1 ;
+            crc = calcCRC(crc,(int)(buffer[buffPtr]));
             buffPtr++;        
           }
           if(DEBUG)
             Serial.printf("Calculated CRC %x\n", crc); 
           if((getDataTime( chk1, TIMEOUT ) == 0) || (getDataTime( chk2, TIMEOUT )==0)) {    /* hi CRC byte */ /* lo CRC byte */
             Serial.println("CRC Timeout")   ;
-            return false;
+            errors ++;
+            //return false;
           }
           if(DEBUG)  
-            Serial.printf("chk1 %d, chk2 %d\n", chk1, chk2);
+            Serial.printf("chk1 %x, chk2 %x\n", chk1, chk2);
           if ( ((chk1 << 8) + chk2 ) == crc ){
             ok = TRUE ;
             if(DEBUG)  
               Serial.println("CRC ok");
           }
+          else
+            if(DEBUG)
+              Serial.printf("CRC bad %x\n",uint16_t(chk1 << 8) + chk2 )  ;
           if ( ok ) {
             snum = snum + 1;
             if(DEBUG)  
@@ -148,7 +173,7 @@ bool getH89File( String fname )  {
               }
             }
           else
-            Serial.printf("\nError # %d - Bad Block\n", errors+1 );
+            Serial.printf("\nError # %d - Bad Block %d\n", errors+1, snum );
           }
           else      // deal with bad sector count
             if (scur == (0xff & snum )) {                       /* wait until done */
@@ -157,13 +182,13 @@ bool getH89File( String fname )  {
               start = ACK ;   /* trick error handler */
               }
             else {     /* fatal error */
-              Serial.printf("\nError # %d - Synchronization error.\n", errors+1 );
+              Serial.printf("\nError # %d - Synchronization error. got: %d, epected: %d\n", errors+1, scur, snum );
               start = EOT ;
               errors += errormax ;
               }
       }
       else
-        Serial.printf("\nError # %d - Sector number error. Got: %d, Expected: %d\n", errors+1, scur,  snum+1 );
+        Serial.printf("\nError # %d - Sector number error. scur %d, not scur: %d\n", errors+1, scur,  scomp );
     }
     if(first != EOT){
          if ( ok )  {  /* got a good sector and finished all processing so - */
@@ -208,46 +233,14 @@ bool getH89File( String fname )  {
 }
 
 
-// /*********************  SendFile ***************************/
-
-//  SendFile()
-//   {
-//   char filename[20];
-//   int fp, j;
-//   char c ;
-
-//   printf("\n\nFilename.Ext ? ");
-
-//   j = 0;
-//   do                   /* Get line in Char mode  for CP/M & HDOS */
-//      if ( ((c = GetCon()) != 0)&&(c != CR) )
-//          {
-//          filename[ j++ ] = c ;
-//          putchar( c ) ;
-//          }
-//      while ( (c != CR)&&( j < 20 ))  ;
-//   filename[ j ] = 0 ;                    /* terminate the string */
-
-//   if (strlen(filename) > 0)
-//       {
-//       fp = fopen( filename, "rb");
-//       if( fp == 0)
-//           printf("\nFile open  error!!  Can't open %s %d\n", filename, fp);
-//         else
-//           {
-//           SendFX( fp );
-//           fclose( fp );
-//           }
-//       }
-//   }
-
 /********************* Send FX **********************/
 /* Send a file XMODEM
 */
 
  bool sendH89File( String fname)
   {
-  int j, i , time;
+  int j, k , time;
+  bool result = true;
   byte first, snum;
   int transize, flagEOT ;
   uint32_t errors, nbytes, errmax;
@@ -257,8 +250,10 @@ bool getH89File( String fname )  {
   byte buffer[BLOCK];
   int buffPtr = 0;
   static uint32_t lastMillis = 0;
-  long retry = 0;
+  //long retry = 0;
+  //long retryLast ;
   bool ok = true;
+  long a, b ;
 
   errmax = errormax ;
   errors = 0;
@@ -305,27 +300,31 @@ bool getH89File( String fname )  {
       printf( "Error! Empty File\n") ;
       goto ESCAPE ;
       }
-  Serial.printf("Trying to send file\n");
+
   timeOutCounter = 10;
-  do   {       /* check for initial NAK to start transfer */
-    if ( getDataTime(first, TIMEOUT) == 0 )
-      if( DEBUG)
-        Serial.println("Initial Timeout\n");
-    Serial.printf("Initial loop errors: %d, first: %d\n", errors, first)    ;
+  k = dataInLast ;
+  do   {       /* check for initial 'C'' to start transfer */
+    if ( getDataTime(first, TIMEOUT) == 0 ){
+      errors ++;
+      if( DEBUG && errors % 5 == 0)
+        Serial.printf("Initial loop errors: %d, first: %x\n", errors, first)    ;
+      }
     if (first != byte('C') ){
       errors ++ ;            /* increment error counter */
-      printf( "Error! Timeout # %d.  Recieved %x\n", errors, first );
+      if( DEBUG && errors % 5 == 0)
+        printf( "Error! Timeout # %d.  Recieved %x\n", errors, first );
       }
   } while ( ((first != byte('C'))&&(first != NAK))&&(errors < errmax )) ;
   timeOutCounter = HOLD;
-  if(DEBUG)
-    Serial.println("Start sending file");
+
   if ( (first == byte('C')) )            /* okay to start transfer */
     {
+    if(DEBUG)
+      Serial.println("Start sending file, got C");
     errors  = 0 ;        /* reset counter */
     do  {
       if(DEBUG)
-        printf("%cSending sector # %d", CR, snum );
+        printf("Sending sector # %d\n",  snum );
       timeOutCounter = 10 ;               // set timeout for 10 sec
       while(dataOut( SOH ) != DATA_SENT);
       /*
@@ -339,22 +338,45 @@ bool getH89File( String fname )  {
       for ( j = 0; j < transize ; j++ )   /* send one block */
         {
         while( sendDataTime( buffer[buffPtr], 500) == 0 );
-        crc = crc ^ (int) buffer[buffPtr]<<8 ;
-        buffPtr++;
-        for(i = 0; i < 8; i++ )
-          if (crc &0x8000)
-            crc = crc << 1 ^ 0x1021 ;
-          else
-            crc = crc << 1 ;
+        crc = calcCRC(crc,(int)(buffer[buffPtr++]));
+        // crc = crc ^ (int) buffer[buffPtr]<<8 ;
+        // buffPtr++;
+        // for(i = 0; i < 8; i++ )
+        //   if (crc &0x8000)
+        //     crc = crc << 1 ^ 0x1021 ;
+        //   else
+        //     crc = crc << 1 ;
         }
-      while( sendDataTime( (crc >> 8)&0x00ff, 500 ) == 0);
-      while( sendDataTime( crc & 0x00ff, 500 ) == 0)    ;
+      if(DEBUG)
+        Serial.printf("CRC: %x\n", crc)  ;
+      time = 0;  
+      while( sendDataTime( (crc >> 8)&0x00ff, 1000 ) == 0)
+        time++;
+      while( sendDataTime( crc & 0x00ff, 1000 ) == 0)    
+        time++;
+      if(DEBUG)
+        Serial.printf("CRC retries %d\n", time)  ;
+      setStatusPort(H89_WRITE_OK);
       do    {      /* check for ACK timeout for block transfer */
+        a = millis();
         time = getDataTime( first, TIMEOUT);
+        Serial.printf(" Data timeout %d ms\n", millis()-a);
         if (time == 0 )
           errors += 1 ;            /* increment error counter */
+        if(DEBUG &&  k != dataInPtr){
+          Serial.println("***************");
+          for (j = k; j <  dataInPtr; j++)
+            if(dataInBuf[j]<20 || dataInBuf[j]> 128)
+              Serial.printf("\n%x\n", dataInBuf[j]);
+            else 
+              Serial.print(char(dataInBuf[j]));
+          k = j;    
+          Serial.printf("\n-------------- Errors: %d, Last: %d, Ptr: %d \n", errors, dataInLast, dataInPtr);
+          }
         }  
         while ( (time == 0)&&(errors < errormax) ) ;
+        if(DEBUG && errors == errormax)
+          Serial.println("ACK Timeout error");
         if ( first == ACK )
           {
           snum += 1 ;    /* increment sector counter */
@@ -369,39 +391,50 @@ bool getH89File( String fname )  {
               if ( nbytes < BLOCK )
                   flagEOT += 1 ;       /* flag last block read */
               }
-          else         /* Error, garbled ACK */
+          }    
+          else  if(errors<errormax)       /* Error, garbled ACK */
             {
             errors += 1 ;
             if (first == NAK)
-                printf("Error! Bad Sector # %d\n", snum ) ;
+                printf("Error! Bad Sector # %d, got %x\n", snum, first ) ;
               else
-                printf("Error! Garbled ACK, Sector # %d\n", snum ) ;
-            }
-          }  
+                printf("Error! Garbled ACK, Sector # %d, got %x\n", snum, first ) ;
+            } 
         } while ( (nbytes > 0)&&(errors < errormax ) ) ;
+    }       // end of send file
+  else
+    {
+    Serial.println("Failure to start file transfer") ;
+    errors = errormax;
     }
-
-  while( sendDataTime( EOT, 500) == 0)    ;
-  if ( (getDataTime(first, 500)) != ACK )   /* One freebie NAK */
-     {
-     while( sendDataTime( EOT, 500) == 0)    ;
-     do {
-         if ( (getDataTime(first, 500)) == 0 || first != ACK )
-             {
-             errors += 1 ;
-             printf("\nError! EOT not ACKed.  Recieved %xh\n", first );
-             sendDataTime( EOT, 500) ;                    /* resend on error */
-             }
-         } while ( (first != ACK)&&( errors < errormax )) ;
-     }
-
-  if (errors < errormax )
-      printf("\nTransfer complete") ;
-    else
-      printf("\nAborting");
+  // cleanup effort
+  if (DEBUG)
+    Serial.printf("Exited Do Send Loop. Errors %d\n", errors);
+  if (errors < errormax ){
+    errors = 0;       // reset error count
+    printf("Transfer complete. Sending EOT\n") ;  
+    if (sendDataTime( EOT, 500) == 0)    ;
+    if ( (getDataTime(first, 500)) != ACK )   /* One freebie NAK */
+      {
+      if( sendDataTime( EOT, 500) == 0)    ;
+      do {
+          if ( (getDataTime(first, 500)) == 0 )
+              {
+              errors += 1 ;
+              printf("\nError! EOT not ACKed.  Recieved %x\n", first );
+              sendDataTime( EOT, 500) ;                    /* resend on error */
+              }
+          } while ( (first != ACK)&&( errors < 4 )) ;
+      }
+    }
+    else {
+      printf("Aborting\n");
+      result = false;
+    }
   ESCAPE:
   file.close()  ;
-  return true;
+  timeOutCounter = HOLD;
+  return result;
   }
 
 

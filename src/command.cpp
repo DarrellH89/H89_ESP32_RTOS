@@ -81,9 +81,12 @@ void commands(){
       default:
          break;
       }
+    resetCounters();  
     cmdFlag = 0;                  // done processing command, reset flag
     cmdLen = CMD_LENGTH; 
     setStatusPort(CMD_RDY)  ;
+    if (bytesToSend == 0)
+        bytesToSend = 1;
     Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop Start %lu, Cmd Loop End %lu, Bytes: %lu, USec/Byte %lu\n", 
       cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
     }  
@@ -172,7 +175,7 @@ void sendH89String(String sendIt){
     }
     else
       retry++;  
-    if(retry > TIMEOUT*2)
+    if(retry > TIMEOUT)
       break;
     }
   Serial.println();  
@@ -226,7 +229,7 @@ int getH89Int(){
  int getDataTime( byte &x, int time){
   int start;
 
-  x = 0;
+  //x = 0;
   start = millis();
   while(!getData(x) && time > 0){
     if(millis()-start > 1)

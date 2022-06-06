@@ -81,6 +81,7 @@ volatile int dataInTime[100];
 volatile int dataInTimePtr ;
 volatile int bitCtr = 0;
 volatile int bits[100];
+volatile bool debugFlag = false;
 
 int sent[20], sentPtr;
 
@@ -92,7 +93,8 @@ volatile unsigned long last_micros;
 //***************** reset Counters
 void resetCounters(){
   Serial.println("Resetting counters\n");
-  last7C = intr7C_cnt = last7E = intr7E_cnt = 0;
+  Serial.printf("intr7C_cnt: %d, intr7E_cnt: %d, intr7CRead_cnt: %d\n",  intr7C_cnt, intr7E_cnt, intr7CRead_cnt);
+  last7C = intr7C_cnt = last7E = intr7E_cnt = intr7CRead_cnt = 0;
   cmdFlag = 0;
   cmdLen = CMD_LENGTH;
   bitCtr = 0;

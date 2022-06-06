@@ -1,3 +1,4 @@
+// soiurce https://github.com/smford/esp32-asyncwebserver-fileupload-example
 #include "settings.h"
 #include <AsyncElegantOTA.h>
 #include "webpages.h"
@@ -11,11 +12,6 @@ Config config;
 extern AsyncWebServer *server;  
 //Config config;                        // configuration
 bool shouldReboot;
-// const String default_ssid = "pelan";
-// const String default_wifipassword = "Datsun240z";
-// const String default_httpuser = "admin";
-// const String default_httppassword = "admin";
-// const int default_webserverporthttp = 80;
 Preferences prefs;              // access to EEPROM (NVM)
 
 
@@ -99,7 +95,7 @@ bool setupWifi(){
       errorMsg = WiFi.status();
       if(errorMsg == 255)
         errorMsg = 0 ;
-      Serial.print("Failed with state: "); Serial.println(errorType[errorMsg]);
+      Serial.print("WiFi state: "); Serial.println(errorType[errorMsg]);
       }
     if(cnt > attempts){
         Serial.printf("\nWiFi failed to connect\n");
@@ -233,11 +229,15 @@ void configureWebServer() {
       Serial.println(logmessage);
 
       if (request->hasParam("name") && request->hasParam("action")) {
-        const char *fileName = request->getParam("name")->value().c_str();
+        String f =  "/";
+        f += request->getParam("name")->value().c_str();
+        const char *fileName =   f.c_str();
         const char *fileAction = request->getParam("action")->value().c_str();
 
         logmessage = "Client:" + request->client()->remoteIP().toString() + " " + request->url() + "?name=" + String(fileName) + "&action=" + String(fileAction);
-
+        if(!SD.begin()){     //SD_CS,spi,80000000)){
+          Serial.println("Card Mount Failed");
+          }
         if (!SD.exists(fileName)) {
           Serial.println(logmessage + " ERROR: file does not exist");
           request->send(400, "text/plain", "ERROR: file does not exist");

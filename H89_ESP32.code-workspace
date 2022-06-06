@@ -2,22 +2,6 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"name": "220318-180353-arduino-blink",
-			"path": "..\\..\\..\\Data\\Darrell's Documents\\PlatformIO\\Projects\\220318-180353-arduino-blink"
-		},
-		{
-			"name": "ESP32 SD Card Test",
-			"path": "..\\ESP32 SD Card Test"
-		},
-		{
-			"name": "WebSocket",
-			"path": "..\\..\\..\\Data\\Darrell's Documents\\PlatformIO\\Projects\\WebSocket"
-		},
-		{
-			"name": "ESP32 Async Web Server Example",
-			"path": "..\\ESP32 Async Web Server Example"
 		}
 	],
 	"settings": {}

@@ -8,6 +8,7 @@ extern int pinInOut;
 extern int currentStatus;
 extern int h89BytesToRead;
 extern int h89ReadData ;
+extern bool debugFlag;
 
 //******************************************
 
@@ -54,7 +55,8 @@ void setStatusPort(byte status){
     currentStatus = status;
     digitalWrite(STATUS_BIT_0, status & 1);
     digitalWrite(STATUS_BIT_1, status & 2);
-    //ets_printf("Status: %d\n", status);
+    if(debugFlag)
+        ets_printf("Status: %d\n", status);
 }
 
 

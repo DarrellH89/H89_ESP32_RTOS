@@ -92,9 +92,9 @@ volatile unsigned long last_micros;
 
 //***************** reset Counters
 void resetCounters(){
-  Serial.println("Resetting counters\n");
   Serial.printf("intr7C_cnt: %d, intr7E_cnt: %d, intr7CRead_cnt: %d\n",  intr7C_cnt, intr7E_cnt, intr7CRead_cnt);
-  last7C = intr7C_cnt = last7E = intr7E_cnt = intr7CRead_cnt = 0;
+  Serial.println("Resetting counters\n");
+  last7C = intr7C_cnt = last7E = intr7E_cnt = intr7CRead_cnt = last7CRead = 0;
   cmdFlag = 0;
   cmdLen = CMD_LENGTH;
   bitCtr = 0;
@@ -198,6 +198,7 @@ void IRAM_ATTR intrHandleWrite7C() {     // Data flag
           break;   
         default:
           cmdLen = 1;
+          ets_printf("Bad command %x\n", temp);
           break;  
       }
     cmdData[cmdDataPtr++] = temp;
@@ -246,7 +247,7 @@ bool getData(byte &x){
       if(dataInLast == BUFFER_LEN)
         dataInLast = 0; 
       bufferFull = false;  
-      ets_printf("GD: %c\n", x);    
+      //ets_printf("GD: %c\n", x);    
     } 
     else
       result = false;  

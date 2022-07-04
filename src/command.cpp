@@ -51,6 +51,8 @@ void commands(){
     // Check if all command bytes arrived
   if (cmdDataPtr >= cmdLen){
     // load data to send back
+    if (DEBUG)
+      Serial.printf("Command: %x\n",cmdData[0] );
     switch (cmdData[0]){
       case 1:
         cmdGotStr = micros();
@@ -62,17 +64,17 @@ void commands(){
         cmdGotStr = micros(); 
         sendH89String(temp);
         break;  
-      case 0x30:
+      case 0x30:          // upload file from H89
          fName = getH89FileName();
-         Serial.print("Filename: ");
+         Serial.print("Getting Filename: ");
          Serial.println(fName);
          //Serial.printf("File Size: %d\n",getH89Int());
          if(!getH89File(fName))
           Serial.println("File upload failed");
          break;  
-      case 0x31:
+      case 0x31:        // Send file to H89
          fName = getH89FileName();
-         Serial.print("Filename: ");
+         Serial.print("Sending Filename: ");
          Serial.println(fName);
          //Serial.printf("File Size: %d\n",getH89Int());
          if(!sendH89File(fName))
@@ -81,14 +83,14 @@ void commands(){
       default:
          break;
       }
-    resetCounters();  
+    //resetCounters();  
     cmdFlag = 0;                  // done processing command, reset flag
     cmdLen = CMD_LENGTH; 
     setStatusPort(CMD_RDY)  ;
-    if (bytesToSend == 0)
+    if (bytesToSend == 0)     // not sure this is still valid
         bytesToSend = 1;
-    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop Start %lu, Cmd Loop End %lu, Bytes: %lu, USec/Byte %lu\n", 
-      cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopStart-cmdStart, cmdLoopEnd-cmdStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
+    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop time %lu, Bytes: %lu, USec/Byte %lu\n", 
+      cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopEnd - cmdLoopStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
     }  
   }
 
@@ -101,6 +103,13 @@ void commands(){
     int temp = 0;
     byte dataOutBuf[CMD_LENGTH];
 
+    // wait until cmdLen == 4
+    // while (cmdLen < 4){
+    //   sendCnt++;
+    //   if (sendCnt > TIMEOUT)
+    //     break;
+    // }  
+    // Serial.printf("Debug Wait Count: %d\n", sendCnt);
     // add command bytes into data buffer plus offset value
     for(sendCnt = 0; sendCnt < cmdLen; sendCnt++)
       dataOutBuf[sendCnt] = cmdData[sendCnt]+offset;

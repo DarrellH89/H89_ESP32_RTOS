@@ -60,8 +60,8 @@
  
 
     //************** Version and Debug
-    const String version = "Hi! I am H89-ESP32, Version 3.3 A 6/3/22";
-    #define DEBUG  true
+    const String version = "Hi! I am H89-ESP32, Version 3.4 A 6/6/22";
+    #define DEBUG  false
 
     //**************** SD Card pins
     #define SD_CLK  18
@@ -75,7 +75,7 @@
     void setInput();
     // Data In / Out
     byte dataOut(byte data);
-    int dataIn();
+    byte dataIn();
     void setStatusPort(byte status);
     // Over the Air
     void setUpOta();

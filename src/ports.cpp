@@ -85,7 +85,7 @@ byte dataOut(byte data){
     return DATA_SENT;
 }
 //****************************************
-int dataIn(){
+byte dataIn(){
     int data = 0;
     int i ;
 
@@ -98,6 +98,7 @@ int dataIn(){
         data = data  + (digitalRead(pins[i]) << i );
     }
     digitalWrite(DATA_IN_OE, HIGH);
+    //ets_printf("DI %x\n", data);
     return data;
 }
 

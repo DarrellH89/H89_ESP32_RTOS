@@ -28,6 +28,33 @@ String askInfo(String what){
     }
   return dataStr ;  
 }
+//*************** scan *************
+// scan available networks
+void scanWifi(){
+    Serial.println("scan start");
+
+  // WiFi.scanNetworks will return the number of networks found
+  int n = WiFi.scanNetworks();
+  Serial.println("scan done");
+  if (n == 0) {
+      Serial.println("no networks found");
+  } else {
+    Serial.print(n);
+    Serial.println(" networks found");
+    for (int i = 0; i < n; ++i) {
+      // Print SSID and RSSI for each network found
+      Serial.print(i + 1);
+      Serial.print(": ");
+      Serial.print(WiFi.SSID(i));
+      Serial.print(" (");
+      Serial.print(WiFi.RSSI(i));
+      Serial.print(")");
+      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN)?" ":"*");
+      delay(10);
+    }
+  }
+  Serial.println("");
+}
 //***************** set Config
 // Get network parameters from NVM
 bool setConfig(bool reset){
@@ -40,7 +67,7 @@ bool setConfig(bool reset){
     prefs.end();
     return okay;
   }
-
+  scanWifi();
   Serial.println("Loading Configuration ...");
 
   while(!okay && check++ < 5){             // Try Five times to get the password data
@@ -88,6 +115,10 @@ bool setupWifi(){
   Serial.println("\nWiFi Configuration ...");
   if(setConfig(false)){
     Serial.print("\nConnecting to Wifi: \n");
+    Serial.printf("SSID: %s\n",config.ssid.c_str());
+    Serial.printf("Password: %s\n",config.wifipassword.c_str());
+    WiFi.mode(WIFI_STA);
+    //WiFi.initWiFi(config.ssid.c_str(), config.wifipassword.c_str() );
     WiFi.begin(config.ssid.c_str(), config.wifipassword.c_str() );
     while (WiFi.status() != WL_CONNECTED && cnt++ < attempts) {
       delay(500);

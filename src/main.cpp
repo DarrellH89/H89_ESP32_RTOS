@@ -297,7 +297,7 @@ void IRAM_ATTR intrHandle7E()
   if (cmdFlag == 1) // reset from H89
     ESP.restart();
   cmdFlag = 1;
-  cmdStart = micros();
+  cmdStart = micros();    // Start timer for command execution
 
   portEXIT_CRITICAL_ISR(&Cmdmux);
 }

@@ -295,7 +295,7 @@ bool getH89File( String fname )  {
   snum = 1 ;
   errors = 0;
   flagEOT = 0 ;
-  file.seek(1, SeekSet);
+  file.seek(0, SeekSet);
   nbytes = file.read( buffer, BLOCK );    /* get the first block of data */
   bytesToSend = nbytes;
   if ( nbytes < BLOCK )
@@ -350,6 +350,8 @@ bool getH89File( String fname )  {
       crc = 0 ;
       for ( j = 0; j < transize ; j++ )   /* send one block */
         {
+        if(DEBUG && snum == 1)
+            Serial.printf("bPtr %d data %x\n", buffPtr, buffer[buffPtr])  ;
         while( (sendDataTime( buffer[buffPtr], 500) == 0) &&(errors < errmax) )
           errors++;
         if( errors > errmax)  

@@ -52,8 +52,6 @@
     //*************** H89 Read/Write values
     #define DATA_NOT_READ   4
     #define DATA_SENT       5
-    // #define H89_OK_TO_READ  1
-    // #define H89_GOT_DATA    2
     #define TIMEOUT         30000             // milli seconds
     #define TIMEOUT_CNT      300000
     #define HOLD -1                             // disable timeOutCounter

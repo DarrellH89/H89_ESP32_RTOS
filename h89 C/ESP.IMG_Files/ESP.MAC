@@ -1,0 +1,868 @@
+;C/80 Compiler 3.1 (4/11/84) - (c) 1984 The Software Toolworks
+
+	DSEG
+ticks::	DW	0
+baudrat::	DW	0
+port::	DB	0
+fastFla::	DB	0
+baud::	DW	0
+rcvbuf::	DW	0
+rcvptr::	DW	0
+statlin::	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	DB	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	EXTRN	tranSiz
+	EXTRN	xyModem
+	EXTRN	Curstr
+	EXTRN	RetCur
+	EXTRN	SaveCur
+	EXTRN	ClrEOL
+	EXTRN	ClrScr
+	EXTRN	On25
+	EXTRN	Off25
+
+	PUBLIC	main
+.d:	DW	0
+.e:	DW	0
+.f:	DW	0
+	CSEG
+
+main:	LXI	H,-257
+	DAD	SP
+	SPHL
+	LHLD	.e
+	PUSH	H
+	LHLD	.d
+	PUSH	H
+	CALL	init
+.i:	LXI	H,4
+	DAD	SP
+	PUSH	H
+	CALL	GetOpti
+	POP	D
+	MOV	A,L
+	STAX	D
+	JMP	.k
+.l:	CALL	FileLis
+	JMP	.j
+.m:	CALL	ReadFil
+	JMP	.j
+.n:	CALL	SendFil
+	JMP	.j
+.o:	CALL	SetYmod
+	JMP	.j
+.p:	CALL	Debug
+	JMP	.j
+	JMP	.j
+.k:	CALL	.switch##
+	DW	.l,76
+	DW	.m,82
+	DW	.n,83
+	DW	.o,89
+	DW	.p,68
+	DW	0
+.j:	DS	0
+.g:	LXI	H,4
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	LXI	D,-88
+	DAD	D
+	MOV	A,H
+	ORA	L
+	JNZ	.i
+.h:	LXI	H,Off25
+	PUSH	H
+	CALL	puts
+	POP	B
+	LXI	H,0
+.q:	XCHG
+	POP	H
+	SHLD	.d
+	POP	H
+	SHLD	.e
+	LXI	H,257
+	DAD	SP
+	SPHL
+	XCHG
+	RET
+
+	PUBLIC	GetOpti
+
+GetOpti:	DCX	SP
+	CALL	FlushCo
+	CALL	prnt_1
+	LXI	H,.c
+	PUSH	H
+	LXI	H,.c+13
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+38
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+49
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+71
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+90
+	PUSH	H
+	LHLD	tranSiz
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	LHLD	xyModem
+	MVI	H,0
+	LXI	D,-88
+	DAD	D
+	MOV	A,H
+	ORA	L
+	JNZ	.r
+	CALL	prnt_1
+	LXI	H,.c+125
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	JMP	.s
+.r:	CALL	prnt_1
+	LXI	H,.c+134
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+.s:	CALL	prnt_1
+	LXI	H,.c+143
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+164
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+195
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+213
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+240
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+262
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+.v:	LXI	H,0
+	DAD	SP
+	PUSH	H
+	CALL	GetCon
+	PUSH	H
+	CALL	toupper
+	POP	B
+	POP	D
+	MOV	A,L
+	STAX	D
+.t:	LXI	H,0
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	MOV	A,H
+	ORA	L
+	JZ	.v
+.u:	LXI	H,10
+	PUSH	H
+	CALL	putchar
+	POP	B
+	LXI	H,0
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+.w:	INX	SP
+	RET
+.c:
+	DB	10
+	DB	10
+	DB	'ESP32, %s'
+	DB	10
+	DB	0
+	DB	'H-89 1.0 ESP 17 Jun 2023'
+	DB	0
+	DB	'Options:'
+	DB	10
+	DB	10
+	DB	0
+	DB	'  R - receive a file'
+	DB	10
+	DB	0
+	DB	'  S - send a file'
+	DB	10
+	DB	0
+	DB	'  Y - X/Ymodem Options (Block %d, '
+	DB	0
+	DB	'Xmodem)'
+	DB	10
+	DB	0
+	DB	'Ymodem)'
+	DB	10
+	DB	0
+	DB	'  T - terminal mode'
+	DB	10
+	DB	0
+	DB	'  E - terminal mode with Echo'
+	DB	10
+	DB	0
+	DB	'  D - Debug Test'
+	DB	10
+	DB	0
+	DB	'  L - Get ESP32 File List'
+	DB	10
+	DB	0
+	DB	'  X - exit to system'
+	DB	10
+	DB	0
+	DB	10
+	DB	'which ? '
+	DB	0
+
+	PUBLIC	Debug
+	DSEG
+.y:	DW	0
+.z:	DW	0
+.ab:	DW	0
+	CSEG
+
+Debug:	LXI	H,-11
+	DAD	SP
+	SPHL
+	LHLD	.ab
+	PUSH	H
+	LHLD	.z
+	PUSH	H
+	LHLD	.y
+	PUSH	H
+	CALL	prnt_1
+	LXI	H,.x
+	PUSH	H
+	LXI	H,224
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+.db:	LXI	H,0
+	SHLD	.ab
+	CALL	prnt_1
+	LXI	H,.x+19
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	LXI	H,1
+	PUSH	H
+	CALL	Send
+	POP	B
+	LXI	H,0
+	SHLD	.z
+.gb:	LHLD	.z
+	LXI	D,32764
+	MOV	A,H
+	XRI	128
+	MOV	H,A
+	DAD	D
+	JC	.fb
+	JMP	.hb
+.eb:	LHLD	.z
+	INX	H
+	SHLD	.z
+	DCX	H
+	JMP	.gb
+.hb:	CALL	rcvchar
+	SHLD	.y
+	LHLD	.y
+	LXI	D,32767
+	MOV	A,H
+	XRI	128
+	MOV	H,A
+	DAD	D
+	JNC	.ib
+	LHLD	.ab
+	INX	H
+	SHLD	.ab
+	DCX	H
+	XCHG
+	LXI	H,6
+	DAD	SP
+	DAD	D
+	PUSH	H
+	LHLD	.y
+	POP	D
+	MOV	A,L
+	STAX	D
+	JMP	.jb
+.ib:	CALL	prnt_1
+	LXI	H,.x+38
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+.jb:	JMP	.eb
+.fb:	LXI	H,0
+	SHLD	.z
+.mb:	LHLD	.ab
+	XCHG
+	LHLD	.z
+	CALL	c.gt##
+	JZ	.lb
+	JMP	.nb
+.kb:	LHLD	.z
+	INX	H
+	SHLD	.z
+	DCX	H
+	JMP	.mb
+.nb:	CALL	prnt_1
+	LXI	H,.x+55
+	PUSH	H
+	LXI	H,8
+	DAD	SP
+	XCHG
+	LHLD	.z
+	DAD	D
+	MOV	L,M
+	MVI	H,0
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	JMP	.kb
+.lb:	CALL	prnt_1
+	LXI	H,.x+65
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	LXI	H,16
+	DAD	SP
+	PUSH	H
+	CALL	getchar
+	PUSH	H
+	CALL	toupper
+	POP	B
+	POP	D
+	MOV	A,L
+	STAX	D
+	CALL	prnt_1
+	LXI	H,.x+17
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+.bb:	LXI	H,16
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	LXI	D,-89
+	DAD	D
+	MOV	A,H
+	ORA	L
+	JNZ	.db
+.cb:	LXI	H,0
+.ob:	XCHG
+	POP	H
+	SHLD	.y
+	POP	H
+	SHLD	.z
+	POP	H
+	SHLD	.ab
+	LXI	H,11
+	DAD	SP
+	SPHL
+	XCHG
+	RET
+.x:
+	DB	'Command Port = %x'
+	DB	10
+	DB	0
+	DB	'Sending Command 1'
+	DB	10
+	DB	0
+	DB	'Data Read Error'
+	DB	10
+	DB	0
+	DB	'Data: %d'
+	DB	10
+	DB	0
+	DB	'Send Command Again ? '
+	DB	0
+
+	PUBLIC	FileLis
+	DSEG
+.qb:	DW	0
+.rb:	DW	0
+.sb:	DW	0
+.tb:	DW	0
+.ub:	DW	0
+.vb:	DW	0
+	CSEG
+
+FileLis:	LXI	H,-1025
+	DAD	SP
+	SPHL
+	LHLD	.vb
+	PUSH	H
+	LHLD	.ub
+	PUSH	H
+	LHLD	.tb
+	PUSH	H
+	LHLD	.sb
+	PUSH	H
+	LHLD	.rb
+	PUSH	H
+	LHLD	.qb
+	PUSH	H
+	CALL	StartCm
+	LXI	H,16
+	PUSH	H
+	CALL	Send
+	POP	B
+	LXI	H,0
+	SHLD	.rb
+	LXI	H,0
+	SHLD	.sb
+	LXI	H,0
+	SHLD	.tb
+	LXI	H,12
+	DAD	SP
+	MVI	M,1
+.yb:	LXI	H,12
+	DAD	SP
+	PUSH	H
+	CALL	rcvchar
+	POP	D
+	MOV	A,L
+	STAX	D
+	LXI	D,0
+	CALL	c.lt##
+	JZ	.zb
+	LHLD	.qb
+	INX	H
+	SHLD	.qb
+	DCX	H
+	XCHG
+	LXI	H,13
+	DAD	SP
+	DAD	D
+	PUSH	H
+	LXI	H,14
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	POP	D
+	MOV	A,L
+	STAX	D
+	LHLD	.qb
+	LXI	D,-1024
+	DAD	D
+	MOV	A,H
+	ORA	L
+	JNZ	.ac
+	LXI	H,0
+	SHLD	.ub
+.dc:	LHLD	.ub
+	LXI	D,31744
+	MOV	A,H
+	XRI	128
+	MOV	H,A
+	DAD	D
+	JC	.cc
+	JMP	.ec
+.bc:	LHLD	.ub
+	INX	H
+	SHLD	.ub
+	DCX	H
+	JMP	.dc
+.ec:	LXI	H,13
+	DAD	SP
+	XCHG
+	LHLD	.ub
+	DAD	D
+	MOV	L,M
+	MVI	H,0
+	PUSH	H
+	CALL	putchar
+	POP	B
+	JMP	.bc
+.cc:	LHLD	.sb
+	DCX	H
+	XCHG
+	LHLD	.rb
+	DAD	D
+	SHLD	.rb
+	LXI	H,0
+	SHLD	.sb
+.ac:	LXI	H,12
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	LXI	D,-10
+	DAD	D
+	MOV	A,H
+	ORA	L
+	JNZ	.fc
+	LHLD	.qb
+	INX	H
+	SHLD	.qb
+	DCX	H
+	XCHG
+	LXI	H,13
+	DAD	SP
+	DAD	D
+	MVI	M,13
+.fc:	JMP	.gc
+.zb:	LHLD	.tb
+	XCHG
+	LXI	H,10
+	CALL	c.div##
+	XCHG
+	MOV	A,H
+	ORA	L
+	JNZ	.hc
+	CALL	prnt_1
+	LXI	H,.pb
+	PUSH	H
+	LXI	H,14
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+.hc:	LHLD	.tb
+	INX	H
+	SHLD	.tb
+	DCX	H
+	LHLD	.tb
+	LXI	D,32567
+	MOV	A,H
+	XRI	128
+	MOV	H,A
+	DAD	D
+	JNC	.ic
+	LXI	H,12
+	DAD	SP
+	MVI	M,0
+	CALL	prnt_1
+	LXI	H,.pb+25
+	PUSH	H
+	LHLD	.sb
+	PUSH	H
+	LXI	H,17
+	DAD	SP
+	XCHG
+	LHLD	.sb
+	DAD	D
+	MOV	L,M
+	MVI	H,0
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	POP	B
+.ic:	DS	0
+.gc:	DS	0
+.wb:	LXI	H,12
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	MOV	A,H
+	ORA	L
+	JNZ	.yb
+.xb:	LHLD	.sb
+	DCX	H
+	XCHG
+	LHLD	.rb
+	DAD	D
+	SHLD	.rb
+	LHLD	.qb
+	LXI	D,32767
+	MOV	A,H
+	XRI	128
+	MOV	H,A
+	DAD	D
+	JNC	.jc
+	LXI	H,0
+	SHLD	.ub
+.mc:	LHLD	.qb
+	XCHG
+	LHLD	.ub
+	CALL	c.gt##
+	JZ	.lc
+	JMP	.nc
+.kc:	LHLD	.ub
+	INX	H
+	SHLD	.ub
+	DCX	H
+	JMP	.mc
+.nc:	LXI	H,13
+	DAD	SP
+	XCHG
+	LHLD	.ub
+	DAD	D
+	MOV	L,M
+	MVI	H,0
+	PUSH	H
+	CALL	putchar
+	POP	B
+	JMP	.kc
+.lc:	DS	0
+.jc:	CALL	prnt_1
+	LXI	H,.pb+47
+	PUSH	H
+	LHLD	.rb
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+.oc:	POP	H
+	SHLD	.qb
+	POP	H
+	SHLD	.rb
+	POP	H
+	SHLD	.sb
+	POP	H
+	SHLD	.tb
+	POP	H
+	SHLD	.ub
+	POP	H
+	SHLD	.vb
+	LXI	H,1025
+	DAD	SP
+	SPHL
+	RET
+.pb:
+	DB	'File List Read Error %c'
+	DB	10
+	DB	0
+	DB	'Buf ptr: %d data: %d'
+	DB	10
+	DB	0
+	DB	'Len: %d'
+	DB	10
+	DB	0
+
+	PUBLIC	Stat25
+
+Stat25:	LXI	H,SaveCur
+	PUSH	H
+	CALL	puts
+	POP	B
+	LXI	H,On25
+	PUSH	H
+	CALL	puts
+	POP	B
+	LXI	H,1
+	PUSH	H
+	LXI	H,25
+	PUSH	H
+	CALL	gotoXY
+	POP	B
+	POP	B
+	CALL	prnt_1
+	LXI	H,.pc
+	PUSH	H
+	LXI	H,13
+	PUSH	H
+	LXI	H,27
+	PUSH	H
+	LXI	H,statlin
+	PUSH	H
+	LXI	H,27
+	PUSH	H
+	LXI	H,27
+	PUSH	H
+	CALL	prnt_2
+	XCHG
+	LXI	H,12
+	DAD	SP
+	SPHL
+	XCHG
+	LXI	H,RetCur
+	PUSH	H
+	CALL	puts
+	POP	B
+	RET
+.pc:
+	DB	'%c%cp%s%cq%cK'
+	DB	0
+
+	PUBLIC	init
+
+init:	LXI	H,11
+	SHLD	ticks
+	LXI	H,224
+	MOV	A,L
+	STA	port
+	LXI	H,1
+	MOV	A,L
+	STA	fastFla
+	LXI	H,4352
+	PUSH	H
+	CALL	alloc
+	POP	B
+	SHLD	rcvbuf
+	LHLD	rcvbuf
+	SHLD	rcvptr
+	LHLD	rcvbuf
+	INX	H
+	MOV	A,H
+	ORA	L
+	JNZ	.rc
+	CALL	prnt_1
+	LXI	H,.qc
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	exit
+.rc:	CALL	prnt_1
+	LXI	H,.qc+32
+	PUSH	H
+	LXI	H,27
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	RET
+.qc:
+	DB	'Not enough memory - TERMINATED'
+	DB	10
+	DB	0
+	DB	'%cv'
+	DB	0
+
+	PUBLIC	ei
+
+ei:	DS	0
+;#asm
+    ei
+;#endasm
+	RET
+
+	PUBLIC	di
+
+di:	DS	0
+;#asm
+    di
+;#endasm
+	RET
+	EXTRN	ReadFil
+	EXTRN	SendFil
+	EXTRN	SetYmod
+	EXTRN	puts
+	EXTRN	FlushCo
+	EXTRN	prnt_1
+	EXTRN	prnt_2
+	EXTRN	toupper
+	EXTRN	GetCon
+	EXTRN	putchar
+	EXTRN	Send
+	EXTRN	rcvchar
+	EXTRN	getchar
+	EXTRN	StartCm
+	EXTRN	gotoXY
+	EXTRN	alloc
+	EXTRN	exit
+	EXTRN	g.
+	END
+LL	puts
+	POP	B
+	RET
+.pc:
+	DB	'%c%cp%s%cq%cK'
+	DB	0
+
+	PUBLIC	init
+
+init:	LXI	H,11
+	SHLD	ticks
+	LXI	H,224
+	MOV	A,L
+	STA	port
+	LXI	H,1
+	MOV	A,L
+	STA	fastFla
+	LXI	H,4352
+	PUSH	H
+	CALL	alloc
+	POP	B
+	SHLD	rcvbuf
+	LHLD	rcvbuf
+	SHLD	rcvptr
+	LHLD	rcvbuf
+	INX	H
+	MOV	A,H
+	ORA	L
+	JNZ	.rc
+	CALL	prnt_1
+	LXI	H,.qc
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	exit
+.rc:	CALL);
+      nbytes = read( fp, rptr, BLOCK);
+      }
+
+printf("Read Data\n");
+  if ( nbytes < BLOCK )
+      {
+      flagEOT += 1 ;       /* flag last block read */
+      j = (nbytes/128)*128;
+      if(j != nbytes)
+      {
+      printf("Filling Block with 0x1A\n");
+      for(i = nbytes; i < BLOCK + 128; i++)
+          *(rptr + i) = SUB;
+      }
+      }
+  if (nbytes == 0 )
+      {
+      printf( "Error! Empty File\n") ;
+      errors = errormax;
+      goto ESCAPE ;
+      }
+
+  printf("\nTrying to send file %s\ntransize %d Block # %d\n",
+      filename, transize, snum);
+
+  errors = 0;
+  do{           /* check for initial NAK or C to start transfer */
+    first = Readline(1);
+    if (first == 'C' )
+    {
+    mode = 1 ;
+    printf( "CRC requested\n" );
+    }
+      else
+    errors ++ ;           /* increment error counter */
+    if (GetCon() == CAN)
+    {
+    printf("Keyboard cancel\n");
+    errors = errormax;
+    goto ESCAPE;
+    }
+    } while ( ((first != 'C')&&(first != NAK))&&

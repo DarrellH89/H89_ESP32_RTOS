@@ -1,16 +1,18 @@
-program esp3;
-{ comments}
+program esp4;
+{ comments - Change port to $E0}
 type
     str20 = string[20];
     str4 = string[4] ;
 const
-     fData = $7c;
-     fCmd = $7e;
-     fStat = $7d;
+     fData = $E0;
+     fCmd = $E2 ;
+     fStat = $E1;
      SOH = 1;
      ACK = 6;
      NAK = $15;
      EOT = 4;
+     CR = 13;
+     ESC = $1b;
 var cnt : integer;
     dataCnt : integer;
     temp : integer;
@@ -66,7 +68,7 @@ function SendData;
            Write(char(data));
  }
         end;
-{}
+{
 Writeln('Data: ', HexOut(data),' Send Status: ',getStatus, ' Cnt: ', cnt);
 {}
     SendData := result;
@@ -130,6 +132,7 @@ var
     ReadLn(fname);
     Writeln('Asking for: ', fname);
     Port[fCmd] := 1;
+    delay(20);
     result := SendData($31);
     for j := 1 to length(fname) do
         result := SendData(byte(fname[j]));
@@ -172,7 +175,8 @@ var
     start := 255;
     if not ReadData(start) then
        err := err + 1;
-    repeat
+    WriteLn;
+    repeat                  {receive loop}
         snum := 255;
         notsnum := 255;
         if not ReadData(snum) then
@@ -189,7 +193,9 @@ var
         crc := 0;
         if (start = SOH) and (snum + notsnum = 255 ) then
             begin
-            Writeln('Good header: ',snum);
+{}            Write(char(CR));
+            Write('Sector: ',snum);
+{}
             temp := bptr;
             err := 0;
             repeat     { good packet header }
@@ -208,22 +214,33 @@ var
                 end;
             err := 0;
             while (not ReadData(start)) and (err < 8) do
+                begin
                 err := err + 1;
+                Writeln(getStatus);
+                end;
             if err < 8 then
                crc1 := start
              else
                crc1 := 255;
+{WriteLn('crc1 err: ', err);
+}
             err := 0;
             while (not ReadData(start)) and (err < 8) do
-               err := err + 1;
+                begin
+                err := err + 1;
+                Writeln(getStatus);
+                end;
             if err < 8 then
                 crc2 := start
               else
                 crc2 := 255;
+{WriteLn('crc2 err: ', err);
 WriteLn('My CRC: ', HexOut(crc), ' crc1: ', HexOut(crc1), ' crc: ', HexOut(crc2));
+}
             if( crc = (crc2 + crc1 shl 8) )then
                 begin
-                Writeln('CRC ok');
+{                Writeln('CRC ok');
+}
                 err := 0;
                 while ( not sendData(ACK) ) and (err < 10) do
                        err := err + 1;
@@ -238,11 +255,6 @@ WriteLn('My CRC: ', HexOut(crc), ' crc1: ', HexOut(crc1), ' crc: ', HexOut(crc2)
                 err := 0;
                 WriteLn('CRC error');
                 if sendData(NAK) then;
-{                while (not sendData(NAK)) and (err < 10) do
-                      err := err +1;
-                if err = 10 then
-                   WriteLn('NAK error');
- }
                 bptr := temp;      { reset buffer ptr }
                 errors := 10;
                 end;
@@ -263,11 +275,13 @@ WriteLn('My CRC: ', HexOut(crc), ' crc1: ', HexOut(crc1), ' crc: ', HexOut(crc2)
             errors := 10;
             WriteLn('SOH error');
             end;
-        Writeln('Loop End');
         until (start = EOT) or (errors > 8);
+    if start = EOT then
+        if SendData(ACK) then;
     if bptr > 0 then    { write rest of buffer }
        BlockWrite( fp, buffer, bptr div 128);
     close(fp);
+    WriteLn;
     if errors < 8 then
        WriteLn('Transfer Complete')
      else
@@ -282,10 +296,10 @@ var cmd: char;
     last: integer;
     j : integer;
 begin
-WriteLn('Welcome to ESP32 Test 3');
+WriteLn('Welcome to ESP32 Test 4');
 repeat
     Writeln;
-    WriteLn('ESP3: Enter Command to Run (0 to end)');
+    WriteLn('ESP4: Enter Command to Run (0 to end)');
     Writeln('1 : Debug');
     WriteLn('2 : Get File List');
     WriteLn('3 : Send File');
@@ -295,6 +309,7 @@ repeat
 
     Read(cmd);
     cmd := UpCase(cmd);
+    Writeln;
     case cmd of
         '1': begin
              debug;
@@ -312,7 +327,9 @@ repeat
              end;
         'X': begin
              Port[fCmd] := 1;
+             delay(20);
              Port[fCmd] := 1;
+             WriteLn('Reset Sent');
              end;
         'S': begin
              WriteLn('Status: ', getStatus);
@@ -325,3 +342,5 @@ repeat
          end;
     until cmd = '0' ;
 end.
+
+

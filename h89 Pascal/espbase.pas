@@ -51,6 +51,7 @@ procedure SendCmd( cmd: byte );
     result : boolean;
     begin
     Port[fCmd] := 1;
+    delay(20);
     result := SendData(cmd);
     result := SendData(5);
     result := SendData(18);
@@ -157,4 +158,183 @@ WriteLn;
 Writeln('Len: ',len);
 fileList := len;
 end;
-
+
+
+(************** send File ***************)
+procedure sendFile ;
+
+const
+     buffSize =1024;
+var
+    j, fsize: integer;
+    fname: str20;
+    fp: file;
+    buffer: array[0..buffSize] of byte;
+    bptrS, bptr, recs: integer;
+    snum, flagEOT, errors, crc, nbytes, transize : integer;
+    i, temp : integer;
+    data: byte;
+    result : boolean;
+    label done;
+
+    begin
+    Writeln;
+    Write('Enter File to Send: ');
+    ReadLn(fname);
+ {}
+    Assign(fp, fname);
+    {$I-}
+    Reset(fp);      (* test if file exists *)
+    {$I+}
+    if IOresult <> 0 then
+       begin
+       Writeln('Can''t find file: ',fname);
+       goto done;
+       end;
+    fsize := FileSize(fp)*128;
+    WriteLn(' File Size: ', fsize);
+    Writeln('Sending File: ', fname);
+    errors :=  0;
+    Port[fCmd] := 1;
+    delay(20);
+    if not SendData($30) then
+       begin
+       errors := errors + 1 ;
+       WriteLn('Command Send error');
+       goto done;
+       end;
+    j := 1;
+    repeat
+        if SendData(byte(fname[j])) then
+           j := j + 1
+         else
+           errors := errors + 1;
+        if errors > 8 then
+           begin
+           WriteLn('Filename send error ', errors);
+           goto done;
+           end;
+        until j > length(fname) ;
+    if not SendData(0) then
+        errors := errors + 1 ;
+    BlockRead(fp,buffer, buffSize div 128,recs);
+
+    (* send file *)
+    snum :=1;
+    transize := 128;
+    errors := 0;
+    bptr :=0;
+    flagEOT := 0;
+    nbytes := recs * 128;
+    if nbytes < buffSize then
+       flagEOT := 1;
+    if nbytes = 0 then
+       begin
+       Writeln('Empty File');
+       goto done;
+       end;
+    Writeln('Sending File');
+    repeat
+        if not ReadData(data) then
+            errors := errors + 1
+          else
+            errors := 0;
+        until (errors > 10) or (errors = 0);
+{}    if errors > 10  then
+       begin
+       WriteLn('Filename Send ACK Error');
+       goto done;
+       end;
+{ }
+    if data = byte('C') then
+       Writeln('Got CRC request: ', char(data))
+     else
+       begin
+       Writeln('Wrong byte: ', data);
+       goto done;
+       end;
+    Writeln;
+    repeat
+          Write(char(CR));
+          Write('Sending Sector: ', snum);
+          if not SendData(SOH) then
+             errors := errors + 1;
+          if not SendData(snum) then
+             errors := errors + 1;
+          if not SendData(not snum) then
+             errors := errors + 1;
+          crc := 0;
+          bptrS := bptr;
+          j := 0;
+          repeat
+              if SendData(buffer[bptr]) then
+                 begin
+                 crc := CrcCalc(crc, buffer[bptr]);
+                 bptr := bptr + 1;
+                 j := j + 1;
+                 end
+               else
+                 errors := errors + 1;
+              until (j = transize) or (errors > 10);
+ {          Write(' End Sector, CRC: ', HexOut(crc),' 1: ',crc shr 8);
+           WriteLn(' 2: ',crc and $ff);
+ }
+           if not SendData((crc shr 8) and $00ff) then
+                 errors := errors + 1;
+           if not SendData(crc and $ff) then
+                 errors := errors + 1;
+           j := 0;
+           while not ReadData( data) and (j  < 5) do
+               j := j + 1;
+           if j = 5 then
+               errors := errors + 1;
+{Writeln('Data Check ', data);
+ }
+           if data = ACK then
+              begin
+              snum := snum + 1;
+              if bptr = nbytes then
+                  if flagEOT = 0 then
+                     begin
+                     BlockRead(fp, buffer, buffSize div 128, recs);
+                     nbytes := recs * 128;
+                     bptr := 0;
+                     if nbytes < buffsize then
+                         flagEOT := 1;
+                     end
+                   else
+                     nbytes := 0;
+             end
+          else
+              begin
+              errors := errors + 1;
+              bptr := bptrS;
+              if data = NAK then
+                 begin
+                 WriteLn('Error: Bad sector # ',snum);
+                 errors := errors + 1;
+                 end
+               else
+                 begin
+                 WriteLn('Error: Garbled ACK # ', snum);
+                 errors := errors + 1;
+                 end;
+              end;
+{          Writeln('Error count: ', errors);
+}
+          until (nbytes = 0) or (errors >10) ;
+    result := SendData( EOT);
+    if not ReadData(data) then;
+{Writeln('data: ', data);
+}
+    Writeln;
+    if data <> 6 then
+       Writeln('Error: File transmission end error');
+    if errors < 10 then
+       WriteLn('Transfer Complete')
+     else
+       WriteLn('Abort transfer');
+    done:
+    Close(fp);
+    end;
+

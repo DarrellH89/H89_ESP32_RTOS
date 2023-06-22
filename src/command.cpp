@@ -35,16 +35,22 @@ extern int totalInterruptCounter;
 void debug();
 
 //************* Timing debug counters
-extern unsigned long cmdStart;
-extern unsigned long cmdEnd;
-extern unsigned long cmdLoopStart;
-extern unsigned long cmdLoopEnd;
+extern unsigned long cmdStart;    // H89 wrote to command line
+extern unsigned long cmdEnd;      // All command Bytes received
+extern unsigned long portChngCnt ;  // number of times port changed from input to output
+extern unsigned long portChngTime;  // time required for port changes
+extern unsigned long cmdLoopStart;  // Command start execution
+extern unsigned long cmdLoopEnd;    // Command end execution
+extern uint32_t cmdWriteByte ;    // bytes written for command
+extern uint32_t cmdReadByte ;
+extern uint32_t readChk ;         // # read attempts
+extern uint32_t writeChk ;        // # write attempts
 unsigned long bytesToSend =0;
-volatile unsigned long cmdPortStart, cmdPortEnd;
+//volatile unsigned long cmdPortStart, cmdPortEnd;
 
 //**************** commands
 void commands(){
-  unsigned long cmdGotStr =0 ;
+  unsigned long cmdPrep = 0 ;
   int t = 0;
   String temp = "";
   String fName = "";
@@ -53,44 +59,63 @@ void commands(){
     // load data to send back
     if (DEBUG)
       Serial.printf("Command: %x\n",cmdData[0] );
+    cmdLoopStart = micros();  
     switch (cmdData[0]){
-      case 1:
-        cmdGotStr = micros();
+      case 1:       // Debug
+        cmdEnd = micros()- cmdStart;
+        cmdLoopStart = micros();
         debug();
+
         break;  
-      case 0x10:
+      case 0x10:      // List Files
         setStatusPort(ESP_BUSY);
+        cmdEnd = micros()- cmdStart;
         temp = listFiles(false);
-        cmdGotStr = micros(); 
+        cmdPrep = micros() - cmdStart - cmdEnd;
+        cmdLoopStart = micros();
         sendH89String(temp);
+        cmdLoopEnd = micros()- cmdLoopStart;
         break;  
       case 0x30:          // upload file from H89
+         cmdEnd = micros()- cmdStart;
          fName = getH89FileName();
          Serial.print("Getting Filename: ");
          Serial.println(fName);
          //Serial.printf("File Size: %d\n",getH89Int());
+         cmdPrep = micros() - cmdStart - cmdEnd;
+         cmdLoopStart = micros();
          if(!getH89File(fName))
           Serial.println("File upload failed");
+        //  cmdLoopEnd = micros()- cmdLoopStart;
          break;  
       case 0x31:        // Send file to H89
+         cmdEnd = micros()- cmdStart;
          fName = getH89FileName();
          Serial.print("Sending Filename: ");
          Serial.println(fName);
          //Serial.printf("File Size: %d\n",getH89Int());
+         cmdPrep = micros() - cmdStart - cmdEnd;
+         cmdLoopStart = micros();         
          if(!sendH89File(fName))
           Serial.println("File download failed");
+        // cmdLoopEnd = micros()- cmdLoopStart;  
          break;    
       default:
          break;
       }
     //resetCounters();  
+    Serial.printf("Debug timing. Cmd %x, Cmd Len %d, Cmd uS %lu, Cmd Prep %lu, Port Changes %lu, Port Change Time %lu\n Cmd Loop time %lu, Bytes: %lu, USec/Byte %lu Read Chk %d Write Chk %d\n", 
+                cmdData[0], cmdLen, cmdEnd,  cmdPrep, portChngCnt,  portChngTime, cmdLoopEnd, cmdWriteByte + cmdReadByte , 
+                cmdLoopEnd/(cmdWriteByte + cmdReadByte), readChk, writeChk);
+    Serial.printf("%x %lu %d %lu %lu %lu %lu %lu %lu %d %d\n", 
+                cmdData[0], cmdLen,cmdEnd, cmdPrep, portChngCnt,  portChngTime, cmdLoopEnd, cmdWriteByte + cmdReadByte , 
+                cmdLoopEnd/(cmdWriteByte + cmdReadByte), readChk, writeChk);                
     cmdFlag = 0;                  // done processing command, reset flag
     cmdLen = CMD_LENGTH; 
     setStatusPort(CMD_RDY)  ;
     if (bytesToSend == 0)     // not sure this is still valid
         bytesToSend = 1;
-    Serial.printf("Debug timing. Cmd Start %lu, Cmd End %lu, Port Change %lu, Got String: %lu,\n Cmd Loop time %lu, Bytes: %lu, USec/Byte %lu\n", 
-      cmdStart,  cmdEnd-cmdStart, cmdPortEnd-cmdPortStart,  cmdGotStr-cmdStart, cmdLoopEnd - cmdLoopStart, bytesToSend, (cmdLoopEnd- cmdLoopStart)/bytesToSend);
+
     }  
   }
 
@@ -120,11 +145,8 @@ void commands(){
 
       Serial.println("Start");
       //
-      cmdPortStart = micros();
       setOutput();
-      cmdPortEnd = micros();
       //
-      cmdLoopStart = micros();
       while(temp < sendCnt){
         if(dataOut(dataOutBuf[temp]) == DATA_SENT){
           temp++;
@@ -132,7 +154,6 @@ void commands(){
         else 
           errCnt++;  
         }
-      cmdLoopEnd = micros();
       Serial.println("End");
     // print cmd bytes received
     for(int i = 0; i < cmdLen; i++){
@@ -151,7 +172,7 @@ void commands(){
     Serial.printf("Data Ready Checks: %ld\n", errCnt);
     errCnt = 0;
     } 
-  setStatusPort(CMD_RDY)  ;
+  //setStatusPort(CMD_RDY)  ;
   }
 
 //************ Send H89 String ********************
@@ -169,10 +190,7 @@ void sendH89String(String sendIt){
   strPtr = 0;           // shouldn't need this
   bytesToSend = strLen;
 
-  cmdPortStart = micros();
   setOutput();
-  cmdPortEnd = micros();
-  cmdLoopStart = micros();
 
   //setStatusPort(H89_READ_OK);
   // delay(100);
@@ -190,9 +208,8 @@ void sendH89String(String sendIt){
   Serial.println();  
   if(strPtr < strLen)
     Serial.printf("String timeout Error strPtr: %d\n", strPtr);
-  cmdLoopEnd = micros();
-  setStatusPort(CMD_RDY)  ;
-  Serial.printf("Exit sendH89String %d, Retry Cnt: %d, Last Char %x\n", strPtr, retry, strArray[strPtr-1]);
+  //setStatusPort(CMD_RDY)  ;
+  Serial.printf("Exit sendH89String %d bytes sent\n, Retry Cnt: %d, Last Char %x\n", strPtr, retry, strArray[strPtr-1]);
 }
 
 //*************************** getH89FileName() *********************
@@ -214,23 +231,23 @@ String getH89FileName(){
   return result;
 }
 
-//******************** getH89Int() ********************
-int getH89Int(){
-  int tooLong =0;
-  int result = 0;         
-  int cnt = 0 ;           // # of bytes
-  byte data = 1;
+// //******************** getH89Int() ********************
+// int getH89Int(){
+//   int tooLong =0;
+//   int result = 0;         
+//   int cnt = 0 ;           // # of bytes
+//   byte data = 1;
 
     
-  tooLong = totalInterruptCounter ;
-  while(cnt < 2){
-    if(totalInterruptCounter - tooLong  > 10)   // break if too long - 10 seconds
-       break;
-    if(getData(data))
-      result += data * pow(256, cnt++);
-    }
-  return result ;
-}
+//   tooLong = totalInterruptCounter ;
+//   while(cnt < 2){
+//     if(totalInterruptCounter - tooLong  > 10)   // break if too long - 10 seconds
+//        break;
+//     if(getData(data))
+//       result += data * pow(256, cnt++);
+//     }
+//   return result ;
+// }
 
 //******************** getDataTime() ********************
 // x = value to return, time = milli seconds to wait
@@ -239,9 +256,9 @@ int getH89Int(){
   int start;
 
   //x = 0;
-  start = millis();
+  start = micros();
   while(!getData(x) && time > 0){
-    if(millis()-start > 1)
+    if(micros()-start > 1)
       time--;
   }  
   //Serial.printf("GDT x %d\n", x);

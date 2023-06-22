@@ -144,6 +144,7 @@ bool getH89File( String fname )  {
           crc = 0 ;             /* CRC mode */
           for( j = 0; j < transize; j++) {      // get data packet
             timeOutCounter = 10;               // timeout counter set to 10 sec
+            timeOutStart = millis();
             while(!getData(buffer[buffPtr]) );
             timeOutCounter = HOLD; 
             crc = calcCRC(crc,(int)(buffer[buffPtr]));
@@ -214,7 +215,7 @@ bool getH89File( String fname )  {
           Serial.printf("first: %d\n", first)  ;
     }
     } while( (first != EOT)&&(errors <= errmax));     // Exit data packet Loop
-  cmdLoopEnd = micros();
+  cmdLoopEnd = micros() - cmdLoopStart;
   bytesToSend = intr7C_cnt - bytesToSend;     // number of bytes received
   if(DEBUG)  
     Serial.printf("Exited Do Loop first: %x, errors: %d\n", first, errors);
@@ -309,6 +310,7 @@ bool getH89File( String fname )  {
     Serial.printf("Bytes Read: %d, FlagEOT %d\n", nbytes, flagEOT)    ;
   // Transfer loop
   timeOutCounter = 10;
+  timeOutStart = millis();
   k = dataInLast ;        // debug data pointer
   do   {       /* check for initial 'C'' to start transfer */
     if ( getDataTime(first, TIMEOUT) == 0 ){
@@ -334,6 +336,7 @@ bool getH89File( String fname )  {
       if(DEBUG)
         Serial.printf("Sending sector # %d\n",  snum );
       timeOutCounter = 10 ;               // set timeout for 10 sec
+      timeOutStart = millis();      
       // Send Header
       while(dataOut( SOH ) != DATA_SENT);
       /*
@@ -342,7 +345,7 @@ bool getH89File( String fname )  {
         */
       while(dataOut( snum ) != DATA_SENT);
      // while(dataOut( ~snum ) != DATA_SENT);     /* 1's complement */
-      if(sendDataTime(~snum,500) == 0) {
+      if(sendDataTime(~snum,1500) == 0) {
         Serial.println("~snum error");
       };
       timeOutCounter = HOLD;
@@ -361,6 +364,7 @@ bool getH89File( String fname )  {
       if(DEBUG)
         Serial.printf("CRC: %x MSB %x LSB %x\n", crc,(crc >> 8)&0x00ff, crc & 0x00ff)  ;
       timeOutCounter = 2;  // 2 seconds
+      timeOutStart = millis();
       debugFlag = false;    // debug flag for setStatusPort
       time = 0;  
       while( sendDataTime( (crc >> 8)&0x00ff, 1000 ) == 0)
@@ -446,7 +450,7 @@ bool getH89File( String fname )  {
     errors = errormax;
     }
   // cleanup effort
-  cmdLoopEnd = micros();
+  cmdLoopEnd = micros() - cmdLoopStart;
   ESCAPE:
   if (DEBUG)
     Serial.printf("Exited Do Send Loop. Errors %d\n", errors);

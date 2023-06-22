@@ -1,0 +1,447 @@
+;C/80 Compiler 3.1 (4/11/84) - (c) 1984 The Software Toolworks
+
+	EXTRN	ticks
+	EXTRN	statlin
+	EXTRN	baudrat
+	EXTRN	baud
+	EXTRN	port
+	EXTRN	fastFla
+	CSEG
+tranSiz::	DW	1024
+xyModem::	DB	88
+Curstr::	DB	27,89,32,32,0
+ClrEOL::	DB	27,91,75,0
+ClrScr::	DB	27,91,69,0
+SaveCur::	DB	27,106,0
+RetCur::	DB	27,107,0
+On25::	DB	27,120,49,0
+Off25::	DB	27,121,49,0
+
+	PUBLIC	FileLis
+	DSEG
+.d:	DW	0
+.e:	DW	0
+.f:	DW	0
+	CSEG
+
+FileLis:	LHLD	.f
+	PUSH	H
+	LHLD	.e
+	PUSH	H
+	LHLD	.d
+	PUSH	H
+	LXI	H,0
+.g:	XCHG
+	POP	H
+	SHLD	.d
+	POP	H
+	SHLD	.e
+	POP	H
+	SHLD	.f
+	XCHG
+	RET
+
+	PUBLIC	setYmod
+
+setYmod:	DCX	SP
+.j:	CALL	prnt_1
+	LXI	H,.c
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+2
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+40
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+75
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+91
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+107
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	CALL	prnt_1
+	LXI	H,.c+121
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+.m:	LXI	H,0
+	DAD	SP
+	PUSH	H
+	CALL	GetCon
+	POP	D
+	MOV	A,L
+	STAX	D
+.k:	LXI	H,0
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	MOV	A,H
+	ORA	L
+	JZ	.m
+.l:	LXI	H,10
+	PUSH	H
+	CALL	putchar
+	POP	B
+	LXI	H,0
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	JMP	.o
+.p:	LXI	H,128
+	SHLD	tranSiz
+	CALL	prnt_1
+	LXI	H,.c+129
+	PUSH	H
+	LHLD	tranSiz
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	JMP	.n
+.q:	LXI	H,1024
+	SHLD	tranSiz
+	CALL	prnt_1
+	LXI	H,.c+129
+	PUSH	H
+	LHLD	tranSiz
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	POP	B
+	JMP	.n
+.r:	LXI	H,88
+	MOV	A,L
+	STA	xyModem
+	CALL	prnt_1
+	LXI	H,.c+145
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	JMP	.n
+.s:	LXI	H,89
+	MOV	A,L
+	STA	xyModem
+	CALL	prnt_1
+	LXI	H,.c+161
+	PUSH	H
+	CALL	prnt_2
+	POP	B
+	JMP	.n
+	JMP	.n
+.o:	CALL	.switch##
+	DW	.p,49
+	DW	.q,50
+	DW	.r,51
+	DW	.s,52
+	DW	0
+.n:	DS	0
+.h:	LXI	H,0
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	LXI	D,-48
+	DAD	D
+	MOV	A,H
+	ORA	L
+	JNZ	.j
+.i:	DS	0
+.t:	INX	SP
+	RET
+.c:
+	DB	10
+	DB	0
+	DB	'Options? 1) Transfer Block 128 bytes'
+	DB	10
+	DB	0
+	DB	'     2) Transfer Block 1024 bytes'
+	DB	10
+	DB	0
+	DB	'     3) Xmodem'
+	DB	10
+	DB	0
+	DB	'     4) Ymodem'
+	DB	10
+	DB	0
+	DB	'     0) Exit'
+	DB	10
+	DB	0
+	DB	'    ?: '
+	DB	0
+	DB	'Block size: %d'
+	DB	10
+	DB	0
+	DB	'Set for Xmodem'
+	DB	10
+	DB	0
+	DB	'Set for Ymodem'
+	DB	10
+	DB	0
+
+	PUBLIC	FlushCo
+	DSEG
+.v:	DW	0
+	CSEG
+
+FlushCo:	LHLD	.v
+	PUSH	H
+.w:	CALL	GetCon
+	SHLD	.v
+	CALL	e.0##
+	JZ	.x
+	JMP	.w
+.x:	DS	0
+.y:	POP	H
+	SHLD	.v
+	RET
+
+	PUBLIC	Ostatus
+
+Ostatus:	DS	0
+;#asm
+    .Z80
+osport:     in      a, (0E1H )
+     and   3h
+     ld    l,a
+     ld    h,0
+    .8080
+;#endasm
+	RET
+
+	PUBLIC	Send
+
+Send:	DS	0
+;#asm
+    .Z80
+sdstat:
+     in   a, (0E1H )
+     and  1
+     jr   nz, sdstat
+     ld   hl,2
+     add  hl,sp
+     ld   a,(hl)
+sdport:
+     out   (0E0H ),a
+     .8080
+;#endasm
+	RET
+
+	PUBLIC	StartCm
+
+StartCm:	DS	0
+;#asm
+.z80
+    ld   a,1
+    out (0E2H ), a
+    .8080
+;#endasm
+	RET
+
+	PUBLIC	rcvchar
+
+rcvchar:	DS	0
+;#asm
+    .z80
+isport:
+    in     a, (0E1H )
+    and    3
+    ld     hl, -1
+    cp     1   ; okay to read data
+    ret    nz
+rcport:
+    in      a, (0E0H )
+    ld      h,0
+    ld      l,a
+    .8080
+;#endasm
+	RET
+
+	PUBLIC	Readlin
+	DSEG
+.z:	DW	0
+	CSEG
+
+Readlin:	LHLD	.z
+	PUSH	H
+	LXI	H,4
+	DAD	SP
+	PUSH	H
+	LXI	H,6
+	DAD	SP
+	MOV	A,M
+	INX	H
+	MOV	H,M
+	MOV	L,A
+	LXI	D,500
+	CALL	c.mult##
+	CALL	q.##
+	LHLD	ticks
+	MVI	M,0
+	INX	H
+	MVI	M,0
+	LXI	H,-1
+	SHLD	.z
+.ab:	LHLD	ticks
+	MOV	A,M
+	INX	H
+	MOV	H,M
+	MOV	L,A
+	PUSH	H
+	LXI	H,6
+	DAD	SP
+	MOV	A,M
+	INX	H
+	MOV	H,M
+	MOV	L,A
+	POP	D
+	CALL	c.ult##
+	JZ	.bb
+	CALL	rcvchar
+	SHLD	.z
+	INX	H
+	CALL	e.0##
+	JZ	.cb
+	JMP	.bb
+.cb:	JMP	.ab
+.bb:	LHLD	.z
+.db:	XCHG
+	POP	H
+	SHLD	.z
+	XCHG
+	RET
+
+	PUBLIC	GetCon
+
+GetCon:	DS	0
+;#asm
+    .z80
+    ld    e,0ffh    ; check for input
+    ld    c,6    ; BDOS function 6
+    call    5
+    ld    hl,0    ; make sure hl = 0
+    ld    l,a    ; Make L = A, 0 if no char
+    .8080
+;#endasm
+	RET
+
+	PUBLIC	SendTex
+
+SendTex:	DS	0
+.eb:	LXI	H,2
+	DAD	SP
+	MOV	A,M
+	INX	H
+	MOV	H,M
+	MOV	L,A
+	MOV	L,M
+	MVI	H,0
+	MOV	A,H
+	ORA	L
+	JZ	.fb
+	LXI	H,2
+	DAD	SP
+	PUSH	H
+	MOV	A,M
+	INX	H
+	MOV	H,M
+	MOV	L,A
+	INX	H
+	CALL	q.##
+	DCX	H
+	PUSH	H
+	CALL	Send
+	POP	B
+	JMP	.eb
+.fb:	RET
+
+	PUBLIC	putcon
+
+putcon:	LXI	H,2
+	DAD	SP
+	MOV	L,M
+	MVI	H,0
+	PUSH	H
+	CALL	putc
+	POP	B
+	RET
+
+	PUBLIC	puts
+
+puts:	DS	0
+;#asm
+    .z80
+    ld    hl,4        ; get the pointer to the string
+    call    mtoffset
+puts1:    in    a,(0E8H +5)    ; check console status
+    and    20h
+    jr    z,puts1     ; loop until console ready
+    ld    a,(hl)
+    or    a        ; check for 0
+    jr    z,putse     ; done
+    out    (0E8H ),a
+    inc    hl        ; point to next
+    jr    puts1
+putse:    ld    hl,0        ; return success
+;     ret
+;
+mtoffset::
+    add    hl,sp        ; HL contains offset to value in stack
+    ld    a,(hl)        ; get LS byte
+    inc    hl        ; point to MS byte
+    ld    h,(hl)        ; get MS byte
+    ld    l,a        ; load LS byte into L
+    ret
+    .8080
+;#endasm
+	RET
+
+	PUBLIC	gotoXY
+
+gotoXY:	DS	0
+;#asm
+        .z80
+        ld      hl,6            ; get x
+        call    mtoffset
+        ld      de,31           ; add video offset
+        add     hl,de
+        ld      a,l             ; save the x value
+        ld      (curstr+3),a
+        ld      hl,4            ; get y
+        call    mtoffset
+        ld      de,31
+        add     hl,de           ; add video offset for y
+        ld      a,l
+        ld      (curstr+2),a
+        ld      hl,curstr       ; get address of XY cursor string
+        push    hl              ; put on stack for puts()
+        call    puts
+        pop     bc              ; fix stack
+    ld    hl,0        ; return 0
+    ret
+    .8080
+;#endasm
+	RET
+	EXTRN	prnt_1
+	EXTRN	prnt_2
+	EXTRN	putchar
+	EXTRN	putc
+	EXTRN	g.
+	END
+       ; get LS byte
+    inc    hl        ; point to MS byte
+    ld    h,(hl)        ; get MS byte
+    ld    l,a        ; loa

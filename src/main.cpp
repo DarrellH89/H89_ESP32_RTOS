@@ -58,10 +58,16 @@ int last7E = 0;
 int last7CRead = 0;
 
 //************* Timing debug counters
-volatile unsigned long cmdStart;
-volatile unsigned long cmdEnd;
-volatile unsigned long cmdLoopStart;
-volatile unsigned long cmdLoopEnd;
+volatile unsigned long cmdStart;     // H89 wrote to command line
+volatile unsigned long cmdEnd;       // All command Bytes received
+volatile unsigned long portChngCnt;  // number of times port changed from input to output
+volatile unsigned long portChngTime; // time required for port changes
+volatile unsigned long cmdLoopStart; // Command start execution
+volatile unsigned long cmdLoopEnd;   // Command end execution
+volatile uint32_t cmdWriteByte;      // bytes written for command
+volatile uint32_t cmdReadByte;       // byte read for command
+volatile uint32_t readChk;           // # read attempts
+volatile uint32_t writeChk;          // # write attempts
 
 //************* Interrupt flags
 portMUX_TYPE Cmdmux = portMUX_INITIALIZER_UNLOCKED;
@@ -75,16 +81,16 @@ volatile int pins[] = {32, 33, 25, 26, 27, 14, 12, 13};
 volatile int pinInOut = DATA_OUT;
 
 // ddebugging variables
-volatile int dataInTime[100];
-volatile int dataInTimePtr;
-volatile int bitCtr = 0;
-volatile int bits[100];
+// volatile int dataInTime[100];
+// volatile int dataInTimePtr;
+// volatile int bitCtr = 0;
+// volatile int bits[100];
 volatile bool debugFlag = false;
 
 int sent[20], sentPtr;
 
 // Debouncing parameters
-long debouncing_time = 1000; // Debouncing Time in Milliseconds
+// long debouncing_time = 1000; // Debouncing Time in Milliseconds
 volatile unsigned long last_micros;
 // volatile byte dataOutFlag = 1 ;
 
@@ -96,7 +102,7 @@ void resetCounters()
   last7C = intr7C_cnt = last7E = intr7E_cnt = intr7CRead_cnt = last7CRead = 0;
   cmdFlag = 0;
   cmdLen = CMD_LENGTH;
-  bitCtr = 0;
+  // bitCtr = 0;
   offset = 1;
   // Reset data in buffer pointers
   dataInPtr = 0;      // Ptr to next position to write data
@@ -158,21 +164,22 @@ void IRAM_ATTR onTimer()
   {
     if (timeOutCounter-- == 0)
     {
-      ets_printf("Timeout %lu\n", millis() - timeOutStart);
+      ets_printf("Timeout mS%lu\n", millis() - timeOutStart);
       ESP.restart();
     }
   }
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-// ************************************ Interrupt Handler H89 Write 7C *************************************
-void IRAM_ATTR intrHandleWrite7C()
+// ************************************ Interrupt Handler H89 Write Data *************************************
+void IRAM_ATTR intrHandleWriteData()
 { // Data flag
   byte temp;
   portENTER_CRITICAL_ISR(&DataInmux);
   setStatusPort(ESP_BUSY);
 
   intr7C_cnt++;
+  cmdWriteByte++;
   temp = dataIn();
   // ets_printf("Data %d, C Flag %d, C Ptr %d, D Last %d, D Ptr %d\n", temp, cmdFlag, cmdDataPtr, dataInLast, dataInPtr);
   if ((cmdFlag == 1) && (cmdDataPtr < cmdLen))
@@ -225,7 +232,7 @@ void IRAM_ATTR intrHandleWrite7C()
   }
   if (cmdDataPtr == cmdLen)
     cmdFlag = 0;
-  cmdEnd = micros();
+  // cmdEnd = micros();
   if (!bufferFull)
     setStatusPort(H89_WRITE_OK);
   else
@@ -259,7 +266,10 @@ bool getData(byte &x)
     // ets_printf("GD: %c\n", x);
   }
   else
+  {
+    readChk++;
     result = false;
+  }
 
   // if(dataInLast == dataInPtr)
   //   bufferFull = true;
@@ -269,11 +279,12 @@ bool getData(byte &x)
 
 // ************************************ Interrupt Handler H89 Read 7C *************************************
 // H89 read port 7C
-void IRAM_ATTR intrHandleRead7C()
+void IRAM_ATTR intrHandleReadData()
 { // Data flag
   portENTER_CRITICAL_ISR(&DataOutmux);
   // h89ReadData =  H89_GOT_DATA;
   intr7CRead_cnt++;
+  cmdReadByte++;
   if (h89BytesToRead > 0)
     h89BytesToRead--;
   // if(h89BytesToRead == 0)
@@ -285,7 +296,8 @@ void IRAM_ATTR intrHandleRead7C()
   portEXIT_CRITICAL_ISR(&DataOutmux);
 }
 // ************************************ Interrupt Handler H89 Write 7E *************************************
-void IRAM_ATTR intrHandle7E()
+// H89 wrote to Command Port
+void IRAM_ATTR intrHandleCmd()
 { // Command flag
   portENTER_CRITICAL_ISR(&Cmdmux);
   // if((long)(micros() - last_micros) >= debouncing_time * 1000) {
@@ -295,9 +307,15 @@ void IRAM_ATTR intrHandle7E()
   intr7E_cnt++;
   cmdDataPtr = 0;
   if (cmdFlag == 1) // reset from H89
+  {
+    ets_printf("H89 Reboot Request\n");
     ESP.restart();
+  }
   cmdFlag = 1;
-  cmdStart = micros();    // Start timer for command execution
+  cmdStart = micros(); // Start timer for command execution
+  readChk = writeChk = 0;
+  cmdWriteByte = cmdReadByte = 0; // reset command byte counter
+  portChngCnt = portChngTime = 0; // reset port change counter/timer
 
   portEXIT_CRITICAL_ISR(&Cmdmux);
 }
@@ -305,10 +323,10 @@ void IRAM_ATTR intrHandle7E()
 // ************************************ Setup *************************************
 void setup()
 {
-  delay(4000); // startup delay to see if WiFi connects
+  // delay(4000); // startup delay to see if WiFi connects
   Serial.begin(115200);
   Serial.println(copyRightNoticeShort);
-  dataInTimePtr = 0;
+  // dataInTimePtr = 0;
   if (setupWifi())
   {
     Serial.println("Configuring Webserver ...");
@@ -327,9 +345,9 @@ void setup()
 
   pinMode(led1, OUTPUT); // Keep alive LED
 
-  attachInterrupt(digitalPinToInterrupt(intr7C), intrHandleWrite7C, FALLING);
-  attachInterrupt(digitalPinToInterrupt(intr7E), intrHandle7E, FALLING);
-  attachInterrupt(digitalPinToInterrupt(H89_READ_DATA), intrHandleRead7C, FALLING);
+  attachInterrupt(digitalPinToInterrupt(H89_WRITE_DATA), intrHandleWriteData, FALLING);
+  attachInterrupt(digitalPinToInterrupt(H89_CMD), intrHandleCmd, FALLING);
+  attachInterrupt(digitalPinToInterrupt(H89_READ_DATA), intrHandleReadData, FALLING);
   cmdFlag = CMD_RDY;
   setStatusPort(cmdFlag);
 

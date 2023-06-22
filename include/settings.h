@@ -40,8 +40,8 @@
     #define CMD_LENGTH      40
     #define BUFFER_LEN      1024
     //***************** Interrupt Pins
-    #define intr7C          35  
-    #define intr7E          34    
+    #define H89_WRITE_DATA  35  
+    #define H89_CMD         34    
     #define H89_READ_DATA   21
     //*************** H89 Status Port values also written to currentStatus
    // #define MAX_READ_WAIT   10000
@@ -58,7 +58,7 @@
  
 
     //************** Version and Debug
-    const String version = "Hi! I am H89-ESP32, Version 3.4 A 6/6/22";
+    const String version = "Hi! I am H89-ESP32, Version 3.5 6/15/23";
     #define DEBUG  false
 
     //**************** SD Card pins

@@ -59,7 +59,7 @@
 
     //************** Version and Debug
     const String version = "Hi! I am H89-ESP32, Version 3.5 6/15/23";
-    #define DEBUG  false
+    #define DEBUG  true
 
     //**************** SD Card pins
     #define SD_CLK  18

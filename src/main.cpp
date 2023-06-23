@@ -164,7 +164,7 @@ void IRAM_ATTR onTimer()
   {
     if (timeOutCounter-- == 0)
     {
-      ets_printf("Timeout mS%lu\n", millis() - timeOutStart);
+      ets_printf("Interrupt Timeout mS %lu\n", millis() - timeOutStart);
       ESP.restart();
     }
   }
@@ -247,6 +247,7 @@ void IRAM_ATTR intrHandleWriteData()
 }
 
 //******************************** get Data ************************************
+// returns true on success and valid byte value
 bool getData(byte &x)
 {
   bool result = true;
@@ -284,9 +285,9 @@ void IRAM_ATTR intrHandleReadData()
   portENTER_CRITICAL_ISR(&DataOutmux);
   // h89ReadData =  H89_GOT_DATA;
   intr7CRead_cnt++;
-  cmdReadByte++;
-  if (h89BytesToRead > 0)
-    h89BytesToRead--;
+  // cmdReadByte++;
+  // if (h89BytesToRead > 0)
+  //   h89BytesToRead--;
   // if(h89BytesToRead == 0)
   //   setStatusPort(CMD_RDY);
   // else

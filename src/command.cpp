@@ -223,6 +223,7 @@ String getH89FileName(){
     if(totalInterruptCounter - tooLong  > 10)   // break if too long - 10 seconds
        break;
     if(getData(data)){
+      Serial.printf("%x ", data);
       result += String(char(data));
     }   
   }
@@ -253,13 +254,16 @@ String getH89FileName(){
 // x = value to return, time = milli seconds to wait
 // returns time left
  int getDataTime( byte &x, int time){
-  int start;
+  long start;
 
   //x = 0;
-  start = micros();
+  start = millis();
   while(!getData(x) && time > 0){
-    if(micros()-start > 1)
+    if(millis()-start > 1)
+      {
       time--;
+      start = millis();
+      }
   }  
   //Serial.printf("GDT x %d\n", x);
   return time; 

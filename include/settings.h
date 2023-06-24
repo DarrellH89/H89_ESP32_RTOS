@@ -9,6 +9,9 @@
     #include <ESPAsyncWebServer.h>
     #include <WiFi.h>
     #include <Preferences.h>
+    #include <freertos/FreeRTOS.h>
+    #include <freertos/task.h>
+    #include <freertos/semphr.h>
 #endif 
 
    //******** Webserver related variables
@@ -58,8 +61,8 @@
  
 
     //************** Version and Debug
-    const String version = "Hi! I am H89-ESP32, Version 3.5 6/15/23";
-    #define DEBUG  true
+    const String version = "Hi! I am H89-ESP32, Version 3.6 Xmodem 6/23/23";
+    #define DEBUG  false
 
     //**************** SD Card pins
     #define SD_CLK  18

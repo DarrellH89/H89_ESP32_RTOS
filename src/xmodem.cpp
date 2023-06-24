@@ -141,7 +141,7 @@ bool getH89File(String fname)
       }
       if (retry > TIMEOUT_CNT * 3)
         {
-          Serial.println("Header Timeout");
+          Serial.printf("Header Timeout. Retry: %d First: %x\n", retry, first);
           return false;
         }
     }
@@ -390,10 +390,8 @@ bool sendH89File(String fname)
       timeOutCounter = 10; // set timeout for 10 sec
       timeOutStart = millis();
       // Send Header
-      while (dataOut(start) != DATA_SENT)
-        ;
-      while (dataOut(snum) != DATA_SENT)
-        ;
+      while (dataOut(start) != DATA_SENT)         ;
+      while (dataOut(snum) != DATA_SENT)        ;
       // while(dataOut( ~snum ) != DATA_SENT);     /* 1's complement */
       if (sendDataTime(~snum, 1500) == 0)
       {
@@ -404,8 +402,8 @@ bool sendH89File(String fname)
       crc = 0;
       for (j = 0; j < transize; j++) /********** send one block **********/
       {
-        if (DEBUG && snum == 1)
-          Serial.printf("bPtr %d data %x\n", buffPtr, buffer[buffPtr]);
+        // if (DEBUG && snum == 1)
+        //   Serial.printf("bPtr %d data %x\n", buffPtr, buffer[buffPtr]);
         while ((sendDataTime(buffer[buffPtr], 500) == 0) && (errors < errmax))
           errors++;
         if (errors > errmax)
@@ -451,7 +449,7 @@ bool sendH89File(String fname)
       do
       { /* check for ACK timeout for block transfer */
         a = millis();
-        time = getDataTime(first, TIMEOUT);
+        time = getDataTime(first, 1000);
         if (time == 0)
         {
           errors++; /* increment error counter */

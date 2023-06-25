@@ -298,9 +298,11 @@ void IRAM_ATTR intrHandleReadData()
 }
 // ************************************ Interrupt Handler H89 Write 7E *************************************
 // H89 wrote to Command Port
+// void IRAM_ATTR intrHandleCmd(void *pvParameters) // Free RTOS
 void IRAM_ATTR intrHandleCmd()
-{ // Command flag
+{
   portENTER_CRITICAL_ISR(&Cmdmux);
+      digitalWrite(STATUS_BIT_0,  1);   // Timing Test
   // if((long)(micros() - last_micros) >= debouncing_time * 1000) {
   //  data is coming so set data lines for input
   setInput();
@@ -349,6 +351,9 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(H89_WRITE_DATA), intrHandleWriteData, FALLING);
   attachInterrupt(digitalPinToInterrupt(H89_CMD), intrHandleCmd, FALLING);
   attachInterrupt(digitalPinToInterrupt(H89_READ_DATA), intrHandleReadData, FALLING);
+
+  // xTaskCreatePinnedToCore(intrHandleCmd, "myCore0Task", 1024, (void *)0, 1, NULL, 0); // run on core 0
+
   cmdFlag = CMD_RDY;
   setStatusPort(cmdFlag);
 
@@ -364,6 +369,7 @@ void setup()
   sentPtr = -1;
   Serial.printf(menuStr);
   digitalWrite(led1, HIGH);
+  Serial.printf("Setup running on Core %d\n", xPortGetCoreID());
 
   // crc Test
   // int j = 0;
@@ -408,6 +414,7 @@ void loop()
     Serial.print("Interrupt 7E count = ");
     Serial.println(intr7E_cnt);
     last7E = intr7E_cnt;
+    Serial.printf("Loop running on Core %d\n", xPortGetCoreID());
   }
   if (intr7CRead_cnt > last7CRead)
   {

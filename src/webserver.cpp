@@ -189,7 +189,7 @@ String processor(const String& var) {
 //**************** Configure Web Server *********************
 void configureWebServer() {
   // configure web server
-
+  Serial.printf("Webserver running on Core %d\n", xPortGetCoreID());
   // if url isn't found
   server->onNotFound(notFound);
 
